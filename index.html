@@ -156,8 +156,10 @@
   /* Step 3: pin the left column so changing readout content cannot reflow it */
   .two-col-fixed { grid-template-columns: 220px 1fr; }
   .s3-left { width: 220px; }
+  /* Step 1: center the draw pad + numbers grid as a group */
+  .two-col-center { grid-template-columns: auto auto; justify-content: center; }
   @media (max-width: 620px) {
-    .two-col { grid-template-columns: 1fr; justify-items: center; }
+    .two-col, .two-col-center { grid-template-columns: 1fr; justify-items: center; }
     .two-col-fixed { grid-template-columns: 1fr; }
     .s3-left { width: 100%; max-width: 280px; }
   }
@@ -865,7 +867,7 @@ function renderStep1() {
     +   '<div class="step-prompt">A neuron weighs its inputs. For handwriting, each input is one pixel. The network never sees a shape, only a grid of brightness values from 0 to 255.</div>'
     +   '<div class="do-this"><span><strong>Draw a digit</strong> on the pad, then look at the grid on the right, that is all the network gets.</span></div>'
     + '</div>'
-    + '<div class="two-col">'
+    + '<div class="two-col two-col-center">'
     +   '<div>'
     +     '<div class="section-label">You draw here</div>'
     +     '<div class="draw-tools">'
@@ -880,7 +882,7 @@ function renderStep1() {
     +     '<canvas id="step1NumCanvas" width="' + CSIZE + '" height="' + CSIZE + '" style="width:236px;max-width:100%;border-radius:12px;border:2px solid var(--border);display:block"></canvas>'
     +     '<div style="margin-top:9px;display:flex;gap:14px;font-size:11px;color:var(--text3)">'
     +       '<span><span style="color:var(--text2);font-weight:500">0</span> = black, empty</span>'
-    +       '<span><span style="color:var(--gold);font-weight:500">255</span> = white, full ink</span>'
+    +       '<span><span style="color:#ffffff;font-weight:500">255</span> = white, full ink</span>'
     +     '</div>'
     +   '</div>'
     + '</div>'
@@ -895,13 +897,13 @@ function step1_renderNumbers() {
   for (var r=0;r<G;r++) for (var c2=0;c2<G;c2++) {
     var v = pixelGrid[r][c2];
     var x = c2*CELL, y = r*CELL;
-    var rr = Math.round(40 + v*211), gg = Math.round(38 + v*153), bb = Math.round(110 - v*74);
-    ctx.fillStyle = 'rgb(' + rr + ',' + gg + ',' + bb + ')';
+    var gray = Math.round(v*255);
+    ctx.fillStyle = 'rgb(' + gray + ',' + gray + ',' + gray + ')';
     ctx.fillRect(x, y, CELL, CELL);
-    ctx.strokeStyle = 'rgba(90,85,160,0.4)';
+    ctx.strokeStyle = 'rgba(140,140,140,0.35)';
     ctx.lineWidth = 0.5;
     ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1);
-    ctx.fillStyle = v > 0.5 ? 'rgba(30,27,75,0.85)' : 'rgba(180,179,224,0.6)';
+    ctx.fillStyle = v > 0.5 ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.65)';
     ctx.font = '7px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -949,7 +951,8 @@ function renderStep2() {
     +         '<button class="tool-btn" id="eraseBtn" onclick="setDrawMode(0)">Erase</button>'
     +         '<button class="tool-btn" onclick="clearDrawing()">Clear</button>'
     +       '</div>'
-    +       '<div class="canvas-wrap"><canvas id="drawCanvas" width="' + CSIZE + '" height="' + CSIZE + '" style="width:158px;max-width:100%;touch-action:none"></canvas></div>'
+    +       '<div class="canvas-wrap" style="position:relative"><canvas id="drawCanvas" width="' + CSIZE + '" height="' + CSIZE + '" style="width:158px;max-width:100%;touch-action:none;display:block"></canvas><canvas id="step2Overlay" width="' + CSIZE + '" height="' + CSIZE + '" style="position:absolute;left:0;top:0;width:158px;height:158px;pointer-events:none"></canvas></div>'
+    +       '<div style="font-size:10.5px;color:var(--text3);margin-top:7px;max-width:158px;line-height:1.4">Hover a detector to highlight what it catches on your digit.</div>'
     +     '</div>'
     +     '<div>'
     +       '<div class="section-label">Nine feature detectors, all looking at once</div>'
@@ -992,8 +995,9 @@ function step2_renderDetectors() {
   function detRow(i) {
     var a = feats[i];
     var lit = a > 0.45;
+    var hov = (step2_hoverIdx === i);
     var pct = Math.round(a*100);
-    return '<div style="display:flex;align-items:center;gap:9px;padding:6px 9px;background:' + (lit?'rgba(251,191,36,0.12)':'var(--bg-card)') + ';border:1px solid ' + (lit?'rgba(251,191,36,0.45)':'var(--border)') + ';border-radius:9px;transition:all 0.3s">'
+    return '<div onmouseover="step2_highlight(' + i + ')" onmouseout="step2_clearHighlight()" onclick="step2_toggleHighlight(' + i + ')" style="display:flex;align-items:center;gap:9px;padding:6px 9px;cursor:pointer;background:' + (lit?'rgba(251,191,36,0.12)':'var(--bg-card)') + ';border:1px solid ' + (hov?'var(--blue)':(lit?'rgba(251,191,36,0.45)':'var(--border)')) + ';border-radius:9px;transition:all 0.3s' + (hov?';box-shadow:0 0 0 1px var(--blue)':'') + '">'
       + '<canvas id="step2_dicon_' + i + '" width="36" height="36" style="width:26px;height:26px;border-radius:5px;background:var(--bg-deep);flex-shrink:0"></canvas>'
       + '<div style="flex:1;min-width:0">'
       +   '<div style="font-size:11.5px;font-weight:500;color:var(--text);line-height:1.2">' + DETECTORS[i].name + '</div>'
@@ -1015,6 +1019,7 @@ function step2_renderDetectors() {
     + '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px">Region detectors, where things sit</div>'
     + '<div style="display:flex;flex-direction:column;gap:5px">' + regionRows + '</div>';
   for (var di=0;di<DETECTORS.length;di++) step2_drawIcon(di);
+  step2_renderOverlay();
 
   var anyInk = 0;
   for (var r=0;r<G;r++) for (var cx=0;cx<G;cx++) anyInk += pixelGrid[r][cx];
@@ -1035,9 +1040,82 @@ function step2_renderDetectors() {
 }
 function step2_canAdvance() { return step2_seen; }
 function step2_post() {
+  step2_hoverIdx = -1;
   initDrawCanvas('drawCanvas', step2_renderDetectors);
   step2_renderDetectors();
   updateNav();
+}
+
+// ----- highlight overlay: show on the drawing what a detector reacts to -----
+// Hovering (or tapping) a detector row paints, over the student's digit, the
+// exact cells that detector is responding to: the longest line run, the loop
+// interior, the heavy region, the bounding box. Mirrors each feature's own math.
+var step2_hoverIdx = -1;
+function step2_highlight(i) { step2_hoverIdx = i; step2_renderOverlay(); }
+function step2_clearHighlight() { step2_hoverIdx = -1; step2_renderOverlay(); }
+function step2_toggleHighlight(i) { step2_hoverIdx = (step2_hoverIdx === i ? -1 : i); step2_renderOverlay(); }
+function step2_renderOverlay() {
+  var cv = document.getElementById('step2Overlay');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,CSIZE,CSIZE);
+  if (step2_hoverIdx < 0) return;
+  var cells = step2_detectorCells(step2_hoverIdx);
+  for (var i=0;i<cells.length;i++) {
+    var x = cells[i][1]*CELL, y = cells[i][0]*CELL;
+    ctx.fillStyle = 'rgba(96,165,250,0.38)';
+    ctx.fillRect(x, y, CELL, CELL);
+    ctx.strokeStyle = 'rgba(147,197,253,0.95)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x+0.75, y+0.75, CELL-1.5, CELL-1.5);
+  }
+}
+// Which cells to light up for detector idx, computed straight from pixelGrid so
+// the highlight always matches what the detector actually measures.
+function step2_detectorCells(idx) {
+  var grid = pixelGrid, icon = DETECTORS[idx].icon, cells = [], r, c;
+  if (icon === 'horiz') {
+    var bLen=0, bR=-1, bC0=0;
+    for (r=0;r<G;r++) { var run=0, st=0; for (c=0;c<G;c++) {
+      if (grid[r][c] > 0.3) { if (run===0) st=c; run++; if (run>bLen) { bLen=run; bR=r; bC0=st; } } else run=0;
+    } }
+    for (c=bC0; bR>=0 && c<bC0+bLen; c++) cells.push([bR,c]);
+  } else if (icon === 'vert') {
+    var vLen=0, vC=-1, vR0=0;
+    for (c=0;c<G;c++) { var run2=0, st2=0; for (r=0;r<G;r++) {
+      if (grid[r][c] > 0.3) { if (run2===0) st2=r; run2++; if (run2>vLen) { vLen=run2; vC=c; vR0=st2; } } else run2=0;
+    } }
+    for (r=vR0; vC>=0 && r<vR0+vLen; r++) cells.push([r,vC]);
+  } else if (icon === 'diag') {
+    var best=[], bestLen=0;
+    for (var s=0;s<G*2;s++) {
+      var cur=[];
+      for (r=0;r<G;r++) {
+        c = s-r;
+        if (c<0 || c>=G) { if (cur.length>bestLen) { bestLen=cur.length; best=cur.slice(); } cur=[]; continue; }
+        if (grid[r][c] > 0.3) cur.push([r,c]);
+        else { if (cur.length>bestLen) { bestLen=cur.length; best=cur.slice(); } cur=[]; }
+      }
+      if (cur.length>bestLen) { bestLen=cur.length; best=cur.slice(); }
+    }
+    cells = best;
+  } else if (icon === 'loop' || icon === 'two' || icon === 'high') {
+    cells = loopCells(grid);
+  } else if (icon === 'top') {
+    for (r=0;r<8;r++) for (c=0;c<G;c++) if (grid[r][c] > 0.3) cells.push([r,c]);
+  } else if (icon === 'left') {
+    for (r=0;r<G;r++) for (c=0;c<8;c++) if (grid[r][c] > 0.3) cells.push([r,c]);
+  } else if (icon === 'wide') {
+    var r0=G, r1=-1, c0=G, c1=-1;
+    for (r=0;r<G;r++) for (c=0;c<G;c++) if (grid[r][c] > 0.3) {
+      if (r<r0) r0=r; if (r>r1) r1=r; if (c<c0) c0=c; if (c>c1) c1=c;
+    }
+    if (r1>=r0) {
+      for (c=c0;c<=c1;c++) { cells.push([r0,c]); cells.push([r1,c]); }
+      for (r=r0;r<=r1;r++) { cells.push([r,c0]); cells.push([r,c1]); }
+    }
+  }
+  return cells;
 }
 
 // ----- convolution inset: how a feature detector "sees" a line -----
@@ -1244,35 +1322,35 @@ function renderStep3() {
     +   '</div>'
     +   '<div>'
     +     '<div class="section-label">9 features feed 10 answer-neurons</div>'
-    +     '<svg id="step3Net" viewBox="-36 0 410 420" style="width:100%;display:block"></svg>'
+    +     '<svg id="step3Net" viewBox="-36 0 410 320" style="width:100%;max-width:410px;display:block;margin:0 auto"></svg>'
     +     '<div id="step3NetHint" style="font-size:10.5px;color:var(--text3);text-align:center;margin-top:2px">tap any digit to see its 9 weights</div>'
-    +   '</div>'
-    + '</div>'
-    + '<div class="panel" style="margin-top:18px;border-color:rgba(251,191,36,0.35)">'
-    +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">'
-    +     '<span style="font-size:9px;font-weight:700;letter-spacing:0.6px;color:var(--bg-deep);background:var(--gold);border-radius:5px;padding:4px 7px">TRAIN IT</span>'
-    +     '<span style="font-size:13px;font-weight:600;color:var(--text)">Nudge the weights until the guesses are right</span>'
-    +   '</div>'
-    +   '<div id="step3BeatBar" style="display:flex;gap:5px;margin-bottom:10px"></div>'
-    +   '<div id="step3Caption" style="text-align:center;font-size:13px;color:var(--text2);font-weight:300;min-height:40px;display:flex;align-items:center;justify-content:center;line-height:1.5"><span>Pick one to begin. <strong style="color:var(--text)">Walk a step</strong> shows the learning loop in slow motion; <strong style="color:var(--text)">Train fully</strong> runs it to the end.</span></div>'
-    +   '<div style="display:flex;gap:8px;justify-content:center;margin-top:6px;flex-wrap:wrap">'
-    +     '<button class="btn btn-primary" id="step3WalkBtn" onclick="step3_walk()">Walk one learning step</button>'
-    +     '<button class="btn btn-ghost" id="step3TrainBtn" onclick="step3_trainFully()">Train it fully</button>'
-    +   '</div>'
-    +   '<div id="step3CurveWrap" style="margin-top:12px;opacity:0;transition:opacity 0.3s">'
-    +     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
-    +       '<div style="font-size:11px;font-weight:600;color:var(--text2)">Training error <span style="font-weight:400;color:var(--text3)">(how wrong the network is, lower is better)</span></div>'
-    +       '<div id="step3CurveSteps" style="font-size:10px;color:var(--text3)"></div>'
+    +     '<div class="panel" style="margin-top:14px;padding:15px;border-color:rgba(251,191,36,0.35)">'
+    +       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">'
+    +         '<span style="font-size:9px;font-weight:700;letter-spacing:0.6px;color:var(--bg-deep);background:var(--gold);border-radius:5px;padding:4px 7px">TRAIN IT</span>'
+    +         '<span style="font-size:13px;font-weight:600;color:var(--text)">Nudge the weights until the guesses are right</span>'
+    +       '</div>'
+    +       '<div id="step3BeatBar" style="display:flex;gap:5px;margin-bottom:10px"></div>'
+    +       '<div id="step3Caption" style="text-align:center;font-size:13px;color:var(--text2);font-weight:300;min-height:40px;display:flex;align-items:center;justify-content:center;line-height:1.5"><span>Pick one to begin. <strong style="color:var(--text)">Walk a step</strong> shows the learning loop in slow motion; <strong style="color:var(--text)">Train fully</strong> runs it to the end.</span></div>'
+    +       '<div style="display:flex;gap:8px;justify-content:center;margin-top:6px;flex-wrap:wrap">'
+    +         '<button class="btn btn-primary" id="step3WalkBtn" onclick="step3_walk()">Walk one learning step</button>'
+    +         '<button class="btn btn-ghost" id="step3TrainBtn" onclick="step3_trainFully()">Train it fully</button>'
+    +       '</div>'
+    +       '<div id="step3CurveWrap" style="margin-top:12px;opacity:0;transition:opacity 0.3s">'
+    +         '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
+    +           '<div style="font-size:11px;font-weight:600;color:var(--text2)">Training error <span style="font-weight:400;color:var(--text3)">(how wrong the network is, lower is better)</span></div>'
+    +           '<div id="step3CurveSteps" style="font-size:10px;color:var(--text3)"></div>'
+    +         '</div>'
+    +         '<svg id="step3Curve" viewBox="0 0 460 78" style="width:100%;display:block"></svg>'
+    +       '</div>'
     +     '</div>'
-    +     '<svg id="step3Curve" viewBox="0 0 460 78" style="width:100%;display:block"></svg>'
     +   '</div>'
     + '</div>'
     + '<div id="step3Reveal"></div>';
 }
 
 var STEP3_FX = 64, STEP3_OX = 296;
-function step3_featY(i) { return 30 + i*42; }
-function step3_ansY(i)  { return 24 + i*40; }
+function step3_featY(i) { return 16 + i*32; }
+function step3_ansY(i)  { return 14 + i*30; }
 
 function step3_currentFeatures() {
   var flat = [];
@@ -1336,7 +1414,7 @@ function step3_drawNet(feats, preds, winIdx) {
     var fv = feats ? feats[f] : 0;
     var fill = feats && fv > 0.45 ? '#fbbf24' : '#353072';
     var tcol = feats && fv > 0.45 ? '#1e1b4b' : '#b8b3e0';
-    html += '<circle cx="' + STEP3_FX + '" cy="' + step3_featY(f) + '" r="13" fill="' + fill + '" stroke="#8a85bd" stroke-width="1.5"></circle>';
+    html += '<circle cx="' + STEP3_FX + '" cy="' + step3_featY(f) + '" r="11" fill="' + fill + '" stroke="#8a85bd" stroke-width="1.5"></circle>';
     html += '<text x="' + STEP3_FX + '" y="' + (step3_featY(f)+3.5) + '" text-anchor="middle" font-size="9" font-family="Poppins" font-weight="600" fill="' + tcol + '">' + (feats?fv.toFixed(1):'-') + '</text>';
     html += '<text x="' + (STEP3_FX-19) + '" y="' + (step3_featY(f)+3) + '" text-anchor="end" font-size="8" fill="#8a85bd" font-family="DM Sans">' + DETECTORS[f].name + '</text>';
   }
@@ -1344,15 +1422,15 @@ function step3_drawNet(feats, preds, winIdx) {
     var win = (a === winIdx);
     var foc = (a === focusN);
     var p = preds ? preds[a] : 0;
-    var r = 13 + (preds ? p*7 : 0);
+    var r = 9 + (preds ? p*5 : 0);
     var stroke = win ? '#fbbf24' : (foc ? '#60a5fa' : '#8a85bd');
     var sw = (win||foc) ? 2.5 : 1.5;
     html += '<circle cx="' + STEP3_OX + '" cy="' + step3_ansY(a) + '" r="' + r.toFixed(1) + '" fill="#353072" stroke="' + stroke + '" stroke-width="' + sw + '" style="cursor:pointer" onclick="step3_setInspect(' + a + ')"></circle>';
-    html += '<text x="' + STEP3_OX + '" y="' + (step3_ansY(a)+5) + '" text-anchor="middle" font-size="15" font-family="Poppins" font-weight="600" fill="' + (win?'#fbbf24':'#f0eefc') + '" style="cursor:pointer;pointer-events:none">' + a + '</text>';
+    html += '<text x="' + STEP3_OX + '" y="' + (step3_ansY(a)+4) + '" text-anchor="middle" font-size="13" font-family="Poppins" font-weight="600" fill="' + (win?'#fbbf24':'#f0eefc') + '" style="cursor:pointer;pointer-events:none">' + a + '</text>';
     if (preds) html += '<text x="' + (STEP3_OX+22) + '" y="' + (step3_ansY(a)+3) + '" text-anchor="start" font-size="8.5" fill="#8a85bd" font-family="DM Sans">' + Math.round(p*100) + '%</text>';
   }
-  html += '<text x="' + STEP3_FX + '" y="412" text-anchor="middle" font-size="9" fill="#8a85bd" font-family="DM Sans" font-weight="600">FEATURES</text>';
-  html += '<text x="' + STEP3_OX + '" y="412" text-anchor="middle" font-size="9" fill="#8a85bd" font-family="DM Sans" font-weight="600">ANSWER-NEURONS</text>';
+  html += '<text x="' + STEP3_FX + '" y="312" text-anchor="middle" font-size="9" fill="#8a85bd" font-family="DM Sans" font-weight="600">FEATURES</text>';
+  html += '<text x="' + STEP3_OX + '" y="312" text-anchor="middle" font-size="9" fill="#8a85bd" font-family="DM Sans" font-weight="600">ANSWER-NEURONS</text>';
   svg.innerHTML = html;
 }
 
@@ -1401,29 +1479,39 @@ function step3_drawReadout(feats, preds, winIdx, empty) {
       + '</div>'
       + '</div>';
   }
-  var bias = MODEL.b[inspecting];
-  var sum = bias;
-  var terms = '';
-  for (var i=0;i<NF;i++) {
-    var w = MODEL.W[inspecting][i];
-    var term = w*feats[i];
-    sum += term;
-    var col = Math.abs(term) < 0.005 ? 'var(--text3)' : (term > 0 ? 'var(--green)' : 'var(--red)');
-    var faded = feats[i] < 0.05 ? 'opacity:0.5;' : '';
-    terms += '<div style="display:flex;justify-content:space-between;font-size:10.5px;padding:1px 0;' + faded + '">'
-      + '<span style="color:var(--text3)">' + DETECTORS[i].name + '</span>'
-      + '<span style="color:' + col + ';font-family:Poppins,monospace">' + (term>=0?'+':'') + term.toFixed(2) + '</span></div>';
+  // The weighted-sum breakdown is collapsed by default; it opens only when the
+  // student taps a digit (or the walkthrough zooms into one), so the readout
+  // stays short until they ask for the detail.
+  if (step3_inspect >= 0 || step3_focus >= 0) {
+    var bias = MODEL.b[inspecting];
+    var sum = bias;
+    var terms = '';
+    for (var i=0;i<NF;i++) {
+      var w = MODEL.W[inspecting][i];
+      var term = w*feats[i];
+      sum += term;
+      var col = Math.abs(term) < 0.005 ? 'var(--text3)' : (term > 0 ? 'var(--green)' : 'var(--red)');
+      var faded = feats[i] < 0.05 ? 'opacity:0.5;' : '';
+      terms += '<div style="display:flex;justify-content:space-between;font-size:10.5px;padding:1px 0;' + faded + '">'
+        + '<span style="color:var(--text3)">' + DETECTORS[i].name + '</span>'
+        + '<span style="color:' + col + ';font-family:Poppins,monospace">' + (term>=0?'+':'') + term.toFixed(2) + '</span></div>';
+    }
+    var bcol = bias >= 0 ? 'var(--green)' : 'var(--red)';
+    terms += '<div style="display:flex;justify-content:space-between;font-size:10.5px;padding:1px 0;font-style:italic">'
+      + '<span style="color:var(--text3)">bias (its own knob)</span>'
+      + '<span style="color:' + bcol + ';font-family:Poppins,monospace">' + (bias>=0?'+':'') + bias.toFixed(2) + '</span></div>';
+    html += '<div style="margin-top:9px;padding:10px 12px;background:var(--bg-card2);border:1px solid var(--border);border-radius:10px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'
+      +   '<span style="font-size:11px;color:var(--blue);font-weight:600">Inside answer-neuron &ldquo;' + inspecting + '&rdquo;</span>'
+      +   (step3_inspect >= 0 ? '<span style="font-size:9.5px;color:var(--text3);cursor:pointer" onclick="step3_setInspect(' + inspecting + ')">close &times;</span>' : '')
+      + '</div>'
+      + terms
+      + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-weight:600">'
+      + '<span style="color:var(--text2)">weighted total</span><span style="color:var(--text);font-family:Poppins,monospace">' + sum.toFixed(2) + '</span></div>'
+      + '</div>';
+  } else {
+    html += '<div style="margin-top:9px;padding:9px 12px;background:var(--bg-card2);border:1px dashed var(--border);border-radius:10px;font-size:11px;color:var(--text3);text-align:center;line-height:1.45">Tap a digit on the right to open <strong style="color:var(--text2)">its</strong> weighted sum.</div>';
   }
-  var bcol = bias >= 0 ? 'var(--green)' : 'var(--red)';
-  terms += '<div style="display:flex;justify-content:space-between;font-size:10.5px;padding:1px 0;font-style:italic">'
-    + '<span style="color:var(--text3)">bias (its own knob)</span>'
-    + '<span style="color:' + bcol + ';font-family:Poppins,monospace">' + (bias>=0?'+':'') + bias.toFixed(2) + '</span></div>';
-  html += '<div style="margin-top:9px;padding:10px 12px;background:var(--bg-card2);border:1px solid var(--border);border-radius:10px">'
-    + '<div style="font-size:11px;color:var(--blue);font-weight:600;margin-bottom:5px">Inside answer-neuron &ldquo;' + inspecting + '&rdquo;</div>'
-    + terms
-    + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-weight:600">'
-    + '<span style="color:var(--text2)">weighted total</span><span style="color:var(--text);font-family:Poppins,monospace">' + sum.toFixed(2) + '</span></div>'
-    + '</div>';
   el.innerHTML = html;
 }
 
@@ -1733,9 +1821,6 @@ var STEP4_QUIZ = [
   { q: 'What does a feature detector do?',
     options: ['Stores the final answer','Responds to one kind of shape in the image','Picks the winning digit'], correct: 1,
     why: 'Each detector is a small neuron tuned to one pattern, a line or a loop, and fires when it spots that pattern.' },
-  { q: 'How does an answer-neuron reach its number?',
-    options: ['It copies one feature','It adds up its weighted features plus a bias','It counts the pixels'], correct: 1,
-    why: 'Every feature is multiplied by a weight, the results are summed, and a bias is added. The loudest answer-neuron wins.' },
   { q: 'A network guesses wrong. What changes during training?',
     options: ['The pixels in the image','The weights on the connections','The number of neurons'], correct: 1,
     why: 'Training only nudges the weights. The image, the features, and the network shape all stay the same.' }
@@ -1745,7 +1830,7 @@ function renderStep4() {
   return ''
     + '<div class="step-header">'
     +   '<div class="step-title">Quick <em>check</em></div>'
-    +   '<div class="step-prompt">Four quick questions on what you just explored. Answer each to finish.</div>'
+    +   '<div class="step-prompt">Three quick questions on what you just explored. Answer each to finish.</div>'
     + '</div>'
     + '<div id="step4Reveal"></div>';
 }
@@ -1917,6 +2002,9 @@ window.step3_trainFully = step3_trainFully;
 window.step2_toggleConv = step2_toggleConv;
 window.step2_convStep = step2_convStep;
 window.step2_convAuto = step2_convAuto;
+window.step2_highlight = step2_highlight;
+window.step2_clearHighlight = step2_clearHighlight;
+window.step2_toggleHighlight = step2_toggleHighlight;
 
 render();
 </script>
