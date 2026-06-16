@@ -217,7 +217,7 @@
   <button id="soundToggle" onclick="toggleSound()" style="position:fixed;top:12px;right:14px;z-index:50;background:rgba(53,48,114,0.6);border:1px solid var(--border);color:var(--text3);font-size:10px;font-family:'DM Sans',sans-serif;padding:5px 10px;border-radius:99px;cursor:pointer">sound on</button>
   <div class="header">
     <h1>Classify Digits with a <em>Neural Network</em></h1>
-    <p>You've built one neuron. Now connect neurons into a network that recognizes digits.</p>
+    <p>You've built one neuron. Now wire neurons into a network that reads digits.</p>
   </div>
   <div class="step-rail" id="stepRail"></div>
   <div class="card">
@@ -864,8 +864,8 @@ function renderStep1() {
   return ''
     + '<div class="step-header">'
     +   '<div class="step-title">A drawing is just <em>numbers</em></div>'
-    +   '<div class="step-prompt">A neuron weighs its inputs. For handwriting, each input is one pixel. The network never sees a shape, only a grid of brightness values from 0 to 255.</div>'
-    +   '<div class="do-this"><span><strong>Draw a digit</strong> on the pad, then look at the grid on the right, that is all the network gets.</span></div>'
+    +   '<div class="step-prompt">A neuron weighs its inputs. For handwriting, each input is one pixel. The network never sees a shape, just a grid of brightness values, 0 to 255.</div>'
+    +   '<div class="do-this"><span><strong>Draw a digit</strong>, then look at the grid on the right. That is all the network gets.</span></div>'
     + '</div>'
     + '<div class="two-col two-col-center">'
     +   '<div>'
@@ -919,7 +919,7 @@ function step1_onDraw() {
     var reveal = document.getElementById('step1Reveal');
     if (reveal) {
       reveal.innerHTML = '<div class="reveal"><div class="reveal-title">How does the model guess from pixel inputs?</div>'
-        + '<div class="reveal-body">Raw pixels are a weak clue, you never draw a digit the same way twice. So instead of judging pixels directly, the network first looks for <strong>shapes</strong> built from them, lines, curves, loops. That is the next step.</div></div>';
+        + '<div class="reveal-body">Raw pixels are a weak clue: you never draw a digit the same way twice. So instead of judging pixels, the network looks for <strong>shapes</strong> built from them, lines, curves, loops. That is the next step.</div></div>';
     }
     updateNav();
   }
@@ -939,8 +939,8 @@ function renderStep2() {
   return ''
     + '<div class="step-header">'
     +   '<div class="step-title">A layer of neurons that detect <em>features</em></div>'
-    +   '<div class="step-prompt">One neuron, many copies. Each is a <strong>feature detector</strong>, weights tuned to react to one thing, a line, a loop, where the ink sits. This layer has nine.</div>'
-    +   '<div class="do-this"><span><strong>Edit your digit</strong> and watch the nine detectors respond. Curious how a detector works? Open the panel below.</span></div>'
+    +   '<div class="step-prompt">One neuron, many copies. Each is a <strong>feature detector</strong>, tuned to react to one thing: a line, a loop, where the ink sits. This layer has nine.</div>'
+    +   '<div class="do-this"><span><strong>Edit your digit</strong> and watch the nine detectors respond. Curious how one works? Open the panel below.</span></div>'
     + '</div>'
     + '<div class="panel">'
     +   '<div style="display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start">'
@@ -1306,8 +1306,8 @@ function renderStep3() {
   return ''
     + '<div class="step-header">'
     +   '<div class="step-title">The <em>network</em>, and how it learns</div>'
-    +   '<div class="step-prompt">Here it is wired up: your 9 feature detectors on the left, 10 <strong>answer-neurons</strong> on the right, one per digit. Every wire is a weight.</div>'
-    +   '<div class="do-this"><span>The network starts untrained, so its guess is random. <strong>Train it</strong> in the panel below and watch the wires change as it learns.</span></div>'
+    +   '<div class="step-prompt">Here it is wired up: 9 feature detectors on the left, 10 <strong>answer-neurons</strong> on the right, one per digit. Every wire is a weight.</div>'
+    +   '<div class="do-this"><span>The network starts untrained, so its guess is random. <strong>Train it</strong> below and watch the wires change as it learns.</span></div>'
     + '</div>'
     + '<div class="two-col two-col-fixed">'
     +   '<div class="s3-left">'
@@ -1380,7 +1380,7 @@ function step3_maybeReveal(empty) {
   if (!step3_trainedFully) return;
   step3_revealed = true;
   reveal.innerHTML = '<div class="reveal"><div class="reveal-title">That is the whole idea</div>'
-    + '<div class="reveal-body">Training set all 90 weights by itself, nobody did it by hand. Tap any digit to see <em>its</em> weights, then head to the <strong>Quiz</strong> to check what you learned.</div></div>';
+    + '<div class="reveal-body">Training set all 90 weights on its own, nobody did it by hand. Tap any digit to see <em>its</em> weights, then take the <strong>Quiz</strong>.</div></div>';
 }
 
 function step3_drawNet(feats, preds, winIdx) {
@@ -1472,7 +1472,7 @@ function step3_drawReadout(feats, preds, winIdx, empty) {
       + '<div style="font-size:8.5px;font-weight:700;letter-spacing:0.7px;color:var(--text3);background:rgba(138,133,189,0.18);border-radius:5px;padding:3px 7px;display:inline-block">UNTRAINED NETWORK</div>'
       + '<div style="font-size:10.5px;color:var(--text3);margin-top:6px">random-weight guess</div>'
       + '<div style="font-family:Poppins,sans-serif;font-size:30px;font-weight:600;color:var(--text3);line-height:1.1;opacity:0.7">' + winIdx + '</div>'
-      + '<div style="font-size:11px;color:var(--text3)">' + conf + '% &mdash; basically a coin flip</div>'
+      + '<div style="font-size:11px;color:var(--text3)">' + conf + '%, basically a coin flip</div>'
       + '<div style="margin-top:8px;padding:8px 10px;background:rgba(96,165,250,0.14);border:1px solid rgba(96,165,250,0.4);border-radius:8px;font-size:11px;color:var(--text2);line-height:1.45;text-align:left;display:flex;align-items:center;gap:7px">'
       +   '<span style="font-size:14px;flex-shrink:0">&#9755;</span>'
       +   '<span><strong style="color:#93c5fd">Train the network below</strong> to turn this into a real guess.</span>'
@@ -1765,7 +1765,7 @@ function step3_trainFully() {
       step3_animating = false;
       step3_disableTrainBtns(false);
       var m2 = modelMetrics();
-      step3_setCaption('<strong style="color:var(--green)">Trained.</strong> The error dropped and the wires now carry what the network learned, it gets <strong style="color:var(--green)">' + Math.round(m2.acc*100) + '%</strong> of its practice digits right. Draw digits above to test it. It is a tiny network, so a messy or unusual digit can still fool it, real networks train on far more examples.');
+      step3_setCaption('<strong style="color:var(--green)">Trained.</strong> The wires now carry what it learned, it gets <strong style="color:var(--green)">' + Math.round(m2.acc*100) + '%</strong> of its practice digits right. Draw above to test it. It is a tiny network, so a messy digit can still fool it, real ones train on far more examples.');
       if (hint) hint.textContent = 'tap any digit to see its 9 weights';
       var wb = document.getElementById('step3WalkBtn');
       if (wb) wb.disabled = true;
