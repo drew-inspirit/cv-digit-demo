@@ -217,7 +217,7 @@
   <button id="soundToggle" onclick="toggleSound()" style="position:fixed;top:12px;right:14px;z-index:50;background:rgba(53,48,114,0.6);border:1px solid var(--border);color:var(--text3);font-size:10px;font-family:'DM Sans',sans-serif;padding:5px 10px;border-radius:99px;cursor:pointer">sound on</button>
   <div class="header">
     <h1>Classify Digits with a <em>Neural Network</em></h1>
-    <p>You've built one neuron. Now wire neurons into a network that reads digits.</p>
+    <p>You've explored one neuron. Now see how a full network classifies your digit drawing.</p>
   </div>
   <div class="step-rail" id="stepRail"></div>
   <div class="card">
@@ -940,110 +940,201 @@ function renderStep2() {
   return ''
     + '<div class="step-header">'
     +   '<div class="step-title">A layer of neurons that detect <em>features</em></div>'
-    +   '<div class="step-prompt">One neuron, many copies. Each is a <strong>feature detector</strong>, tuned to react to one thing: a line, a loop, where the ink sits. This layer has nine.</div>'
-    +   '<div class="do-this"><span><strong>Edit your digit</strong> and watch the nine detectors respond. Curious how one works? Open the panel below.</span></div>'
+    +   '<div class="step-prompt"><strong>Convolutions</strong> detect patterns from your image to find useful patterns. Check the features below (examples of what a network might learn from training).</div>'
+    +   '<div class="do-this"><span><strong>Pick a feature</strong>, train its filter, then scan your digit to see where that pattern shows up.</span></div>'
     + '</div>'
-    + '<div class="panel">'
-    +   '<div style="display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start">'
-    +     '<div>'
-    +       '<div class="section-label">Your drawing</div>'
-    +       '<div class="draw-tools">'
-    +         '<button class="tool-btn active" id="drawBtn" onclick="setDrawMode(1)">Draw</button>'
-    +         '<button class="tool-btn" id="eraseBtn" onclick="setDrawMode(0)">Erase</button>'
-    +         '<button class="tool-btn" onclick="clearDrawing()">Clear</button>'
-    +       '</div>'
-    +       '<div class="canvas-wrap" style="position:relative"><canvas id="drawCanvas" width="' + CSIZE + '" height="' + CSIZE + '" style="width:158px;max-width:100%;touch-action:none;display:block"></canvas><canvas id="step2Overlay" width="' + CSIZE + '" height="' + CSIZE + '" style="position:absolute;left:0;top:0;width:158px;height:158px;pointer-events:none"></canvas></div>'
-    +       '<div style="font-size:10.5px;color:var(--text3);margin-top:7px;max-width:158px;line-height:1.4">Hover a detector to highlight what it catches on your digit.</div>'
+    + '<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
+    +   '<div>'
+    +     '<div class="section-label">Your digit</div>'
+    +     '<div class="draw-tools">'
+    +       '<button class="tool-btn active" id="drawBtn" onclick="setDrawMode(1)">Draw</button>'
+    +       '<button class="tool-btn" id="eraseBtn" onclick="setDrawMode(0)">Erase</button>'
+    +       '<button class="tool-btn" onclick="clearDrawing()">Clear</button>'
     +     '</div>'
-    +     '<div>'
-    +       '<div class="section-label">Nine feature detectors, all looking at once</div>'
-    +       '<div id="step2Detectors"></div>'
-    +     '</div>'
+    +     '<div class="canvas-wrap" style="position:relative"><canvas id="drawCanvas" width="' + CSIZE + '" height="' + CSIZE + '" style="width:150px;max-width:100%;touch-action:none;display:block"></canvas><canvas id="step2Overlay" width="' + CSIZE + '" height="' + CSIZE + '" style="position:absolute;left:0;top:0;width:150px;height:150px;pointer-events:none"></canvas></div>'
     +   '</div>'
+    +   '<div style="flex:1;min-width:210px;font-size:12px;color:var(--text2);line-height:1.55">A <strong>filter</strong> (a small grid of weights) slides across your digit, multiplying and adding, to build a <strong>feature map</strong> of where its pattern appears. Train one below and scan your digit with it. <span style="color:var(--text3)">Hover a detector to highlight what it catches.</span></div>'
     + '</div>'
-    + '<div class="panel" style="margin-top:14px;padding:0">'
-    +   '<button id="step2ConvToggle" onclick="step2_toggleConv()" style="width:100%;text-align:left;padding:13px 16px;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:DM Sans,sans-serif">'
-    +     '<span style="font-size:13px;color:var(--blue);font-weight:600">But how does a neuron actually detect a line?</span>'
-    +     '<span id="step2ConvCaret" style="color:var(--text3);font-size:13px">+ show me</span>'
-    +   '</button>'
-    +   '<div id="step2ConvBody" style="display:none;padding:0 16px 16px"></div>'
+    + '<div class="section-label">your digit &rarr; filter &rarr; feature map &rarr; nine features</div>'
+    + '<canvas id="step2Strip" style="width:100%;display:block"></canvas>'
+    + '<div class="panel" style="margin-top:14px;border-color:rgba(96,165,250,0.35)">'
+    +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+    +     '<span style="font-size:9px;font-weight:700;letter-spacing:0.6px;color:var(--bg-deep);background:var(--blue);border-radius:5px;padding:4px 7px">MAKE A FILTER</span>'
+    +     '<span style="font-size:13px;font-weight:600;color:var(--text)">Train a filter for a feature, then scan your digit with it</span>'
+    +   '</div>'
+    +   '<div style="font-size:11px;color:var(--text3);margin-bottom:6px">1. Pick a feature to detect</div>'
+    +   '<div id="step2FeatBtns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px">'
+    +     '<button class="tool-btn" onclick="step2_pickFeat(0)">Horizontal line</button>'
+    +     '<button class="tool-btn" onclick="step2_pickFeat(1)">Vertical line</button>'
+    +     '<button class="tool-btn" onclick="step2_pickFeat(2)">Diagonal slash</button>'
+    +   '</div>'
+    +   '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    +     '<button class="btn btn-primary" id="step2TrainBtn" onclick="step2_trainKer()" style="padding:8px 15px;font-size:12px" disabled>2. Train filter</button>'
+    +     '<button class="btn btn-ghost" id="step2ScanBtn" onclick="step2_scanDigit()" style="padding:8px 15px;font-size:12px" disabled>3. Scan digit</button>'
+    +   '</div>'
+    +   '<div id="step2Cap" style="text-align:center;font-size:12.5px;color:var(--text2);margin-top:11px;min-height:34px;line-height:1.5;display:flex;align-items:center;justify-content:center"></div>'
     + '</div>'
     + '<div id="step2Reveal"></div>';
 }
-function step2_drawIcon(i) {
-  var cv = document.getElementById('step2_dicon_'+i);
-  if (!cv) return;
-  var ctx = cv.getContext('2d');
-  ctx.fillStyle = '#1a173f';
-  ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.fillStyle = '#fbbf24';
-  ctx.strokeStyle = '#fbbf24';
-  var icon = DETECTORS[i].icon;
-  if (icon === 'horiz') { ctx.fillRect(7, 16, 22, 4); }
-  else if (icon === 'vert') { ctx.fillRect(16, 7, 4, 22); }
-  else if (icon === 'diag') { ctx.lineWidth = 4; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(27,9); ctx.lineTo(9,27); ctx.stroke(); }
-  else if (icon === 'loop') { ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(18,18,9,0,Math.PI*2); ctx.stroke(); }
-  else if (icon === 'two') { ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(18,12,6,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(18,25,6,0,Math.PI*2); ctx.stroke(); }
-  else if (icon === 'high') { ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(18,12,6,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha=0.3; ctx.fillRect(7,24,22,3); ctx.globalAlpha=1; }
-  else if (icon === 'top') { ctx.globalAlpha=0.9; ctx.fillRect(8,8,20,8); ctx.globalAlpha=0.25; ctx.fillRect(8,20,20,8); ctx.globalAlpha=1; }
-  else if (icon === 'left') { ctx.globalAlpha=0.9; ctx.fillRect(8,8,8,20); ctx.globalAlpha=0.25; ctx.fillRect(20,8,8,20); ctx.globalAlpha=1; }
-  else if (icon === 'wide') { ctx.lineWidth=3; ctx.strokeRect(6,13,24,10); }
+// features the student can build a filter for (each maps to a shape detector)
+var STEP2_FEATS = [
+  { idx:0, name:'Horizontal line', pos:[[0,0,0, 1,1,1, 0,0,0]], neg:[[0,1,0, 0,1,0, 0,1,0],[0,0,1, 0,1,0, 1,0,0],[1,1,1, 1,1,1, 1,1,1],[0,0,0, 0,0,0, 0,0,0]] },
+  { idx:1, name:'Vertical line',   pos:[[0,1,0, 0,1,0, 0,1,0]], neg:[[0,0,0, 1,1,1, 0,0,0],[0,0,1, 0,1,0, 1,0,0],[1,1,1, 1,1,1, 1,1,1],[0,0,0, 0,0,0, 0,0,0]] },
+  { idx:2, name:'Diagonal slash',  pos:[[0,0,1, 0,1,0, 1,0,0]], neg:[[0,0,0, 1,1,1, 0,0,0],[0,1,0, 0,1,0, 0,1,0],[1,1,1, 1,1,1, 1,1,1],[0,0,0, 0,0,0, 0,0,0]] }
+];
+var step2_selIdx = -1;      // which feature is picked
+var step2_ker = null;       // the filter being trained (9 weights)
+var step2_kerB = 0;
+var step2_kerTrained = false;
+var step2_scanPos = -1;     // -1 = not scanned; else 0..255 built so far
+var step2_anim = false;
+var step2_revShown = false;
+function step2_randKernel(){ var k=[]; for (var i=0;i<9;i++) k.push((Math.random()-0.5)*0.4); return k; }
+function step2_kerForward(patch){ var z=step2_kerB; for (var i=0;i<9;i++) z+=step2_ker[i]*patch[i]; return 1/(1+Math.exp(-z)); }
+function step2_kerSet(){ var f=STEP2_FEATS[step2_selIdx], set=[]; for (var i=0;i<f.pos.length;i++) set.push({p:f.pos[i],y:1}); for (var j=0;j<f.neg.length;j++) set.push({p:f.neg[j],y:0}); return set; }
+function step2_kerTrainStep(set){ var m=set.length, gw=[0,0,0,0,0,0,0,0,0], gb=0; for (var t=0;t<m;t++){ var ex=set[t], a=step2_kerForward(ex.p), dz=a-ex.y; for (var i=0;i<9;i++) gw[i]+=dz*ex.p[i]; gb+=dz; } for (var k=0;k<9;k++) step2_ker[k]-=0.6*gw[k]/m; step2_kerB-=0.6*gb/m; }
+function step2_convMap(){
+  if (!step2_ker) return null;
+  var out=new Array(G*G);
+  for (var r=0;r<G;r++) for (var c=0;c<G;c++){
+    var sm=0;
+    for (var kr=-1;kr<=1;kr++) for (var kc=-1;kc<=1;kc++){ var rr=r+kr, cc=c+kc, v=(rr>=0&&rr<G&&cc>=0&&cc<G)?pixelGrid[rr][cc]:0; sm+=v*step2_ker[(kr+1)*3+(kc+1)]; }
+    out[r*G+c]= sm>0?sm:0;
+  }
+  return out;
 }
-function step2_renderDetectors() {
-  var feats = runDetectors();
-  var c = document.getElementById('step2Detectors');
-  if (!c) return;
-  function detRow(i) {
-    var a = feats[i];
-    var lit = a > 0.45;
-    var hov = (step2_hoverIdx === i);
-    var pct = Math.round(a*100);
-    return '<div onmouseover="step2_highlight(' + i + ')" onmouseout="step2_clearHighlight()" onclick="step2_toggleHighlight(' + i + ')" style="display:flex;align-items:center;gap:9px;padding:6px 9px;cursor:pointer;background:' + (lit?'rgba(251,191,36,0.12)':'var(--bg-card)') + ';border:1px solid ' + (hov?'var(--blue)':(lit?'rgba(251,191,36,0.45)':'var(--border)')) + ';border-radius:9px;transition:all 0.3s' + (hov?';box-shadow:0 0 0 1px var(--blue)':'') + '">'
-      + '<canvas id="step2_dicon_' + i + '" width="36" height="36" style="width:26px;height:26px;border-radius:5px;background:var(--bg-deep);flex-shrink:0"></canvas>'
-      + '<div style="flex:1;min-width:0">'
-      +   '<div style="font-size:11.5px;font-weight:500;color:var(--text);line-height:1.2">' + DETECTORS[i].name + '</div>'
-      +   '<div style="margin-top:3px;height:5px;background:var(--bg-deep);border-radius:99px;overflow:hidden">'
-      +     '<div style="height:100%;width:' + pct + '%;background:' + (lit?'var(--gold)':'var(--border)') + ';border-radius:99px;transition:width 0.4s"></div>'
-      +   '</div>'
-      + '</div>'
-      + '<div style="font-family:Poppins,monospace;font-size:11px;font-weight:500;color:' + (lit?'var(--gold)':'var(--text3)') + ';flex-shrink:0;width:30px;text-align:right">' + a.toFixed(2) + '</div>'
-      + '</div>';
-  }
-  var shapeRows = '', regionRows = '';
-  for (var i=0;i<DETECTORS.length;i++) {
-    if (DETECTORS[i].group === 'shape') shapeRows += detRow(i);
-    else regionRows += detRow(i);
-  }
-  c.innerHTML = ''
-    + '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px">Shape detectors</div>'
-    + '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:11px">' + shapeRows + '</div>'
-    + '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px">Region detectors, where things sit</div>'
-    + '<div style="display:flex;flex-direction:column;gap:5px">' + regionRows + '</div>';
-  for (var di=0;di<DETECTORS.length;di++) step2_drawIcon(di);
-  step2_renderOverlay();
-
-  var anyInk = 0;
-  for (var r=0;r<G;r++) for (var cx=0;cx<G;cx++) anyInk += pixelGrid[r][cx];
-  if (anyInk > 3 && !step2_seen) {
-    step2_seen = true;
-    var fired = [];
-    for (var fi=0;fi<feats.length;fi++) if (feats[fi] > 0.55) fired.push(DETECTORS[fi].name.toLowerCase());
-    var firedText = fired.length
-      ? 'Right now the loudest detectors on your digit are <strong>' + fired.join(', ') + '</strong>.'
-      : 'Your detectors are all fairly quiet, try a bolder or larger digit.';
-    var rv = document.getElementById('step2Reveal');
-    if (rv) {
-      rv.innerHTML = '<div class="reveal"><div class="reveal-title">Nine numbers now describe your digit</div>'
-        + '<div class="reveal-body">' + firedText + ' Your 256 pixels just became 9 feature values, and those 9 numbers are what the next layer turns into a digit guess.</div></div>';
-    }
-    updateNav();
-  }
+function step2_label(ctx,x,y,t){ ctx.fillStyle='#8a85bd'; ctx.font='600 10px "DM Sans",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic'; ctx.fillText(t,x,y); }
+function step2_stripIcon(ctx,x,y,s,icon){
+  ctx.save(); ctx.strokeStyle='#b8b3e0'; ctx.fillStyle='#b8b3e0'; ctx.lineWidth=2; ctx.lineCap='round';
+  var cx=x+s/2, cy=y+s/2;
+  if (icon==='horiz'){ ctx.fillRect(x+2,cy-1.5,s-4,3); }
+  else if (icon==='vert'){ ctx.fillRect(cx-1.5,y+2,3,s-4); }
+  else if (icon==='diag'){ ctx.beginPath(); ctx.moveTo(x+s-3,y+3); ctx.lineTo(x+3,y+s-3); ctx.stroke(); }
+  else if (icon==='loop'){ ctx.beginPath(); ctx.arc(cx,cy,s/2-3,0,Math.PI*2); ctx.stroke(); }
+  else if (icon==='two'){ ctx.beginPath(); ctx.arc(cx,cy-3.5,s/4,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(cx,cy+3.5,s/4,0,Math.PI*2); ctx.stroke(); }
+  else if (icon==='high'){ ctx.beginPath(); ctx.arc(cx,cy-3,s/4,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha=0.35; ctx.fillRect(x+2,y+s-4,s-4,2); ctx.globalAlpha=1; }
+  else if (icon==='top'){ ctx.globalAlpha=0.9; ctx.fillRect(x+2,y+2,s-4,s/2-2); ctx.globalAlpha=0.3; ctx.fillRect(x+2,cy+1,s-4,s/2-2); ctx.globalAlpha=1; }
+  else if (icon==='left'){ ctx.globalAlpha=0.9; ctx.fillRect(x+2,y+2,s/2-2,s-4); ctx.globalAlpha=0.3; ctx.fillRect(cx+1,y+2,s/2-2,s-4); ctx.globalAlpha=1; }
+  else if (icon==='wide'){ ctx.lineWidth=2; ctx.strokeRect(x+2,cy-4,s-4,8); }
+  ctx.restore();
 }
+function step2_stripFy(i,H){ return 24 + i*((H-46)/(DETECTORS.length-1)); }
+function step2_drawStrip(){
+  var canvas=document.getElementById('step2Strip'); if(!canvas) return;
+  var ctx=canvas.getContext('2d'), W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#1e1b4b'; ctx.fillRect(0,0,W,H);
+  var feats=runDetectors();
+  var selDet = step2_selIdx>=0 ? STEP2_FEATS[step2_selIdx].idx : -1;
+  var ix=16, iy=52, isz=110, ic=isz/G;
+  var kx=200, ky=52, kc=17;
+  var fmx=200, fmy=140, fsz=110, fmc=fsz/G;
+  var Fx=356;
+  var map=step2_convMap(), mmax=0.0001; if (map) for (var mi=0;mi<map.length;mi++) if (map[mi]>mmax) mmax=map[mi];
+  var sc=step2_scanPos, sr=(sc>=0?Math.floor(sc/G):-1), scc=(sc>=0?sc%G:-1);
+  // connections feature map -> nodes
+  ctx.strokeStyle='rgba(140,135,210,0.10)'; ctx.lineWidth=0.8;
+  for (var q=0;q<DETECTORS.length;q++){ ctx.beginPath(); ctx.moveTo(fmx+fsz, fmy+fsz/2); ctx.lineTo(Fx-2, step2_stripFy(q,H)); ctx.stroke(); }
+  // input -> filter
+  ctx.strokeStyle='rgba(251,191,36,0.5)'; ctx.lineWidth=1.4; ctx.beginPath(); ctx.moveTo(ix+isz+3, iy+isz/2); ctx.lineTo(kx-8, ky+1.5*kc); ctx.stroke();
+  step2_label(ctx, (ix+isz+kx)/2+4, iy+isz/2-6, 'slides');
+  // input digit + window
+  for (var r=0;r<G;r++) for (var c=0;c<G;c++){ var v=pixelGrid[r][c], g=Math.round(v*255); ctx.fillStyle='rgb('+g+','+g+','+g+')'; ctx.fillRect(ix+c*ic, iy+r*ic, ic+0.6, ic+0.6); }
+  ctx.strokeStyle='#4a4490'; ctx.lineWidth=1; ctx.strokeRect(ix,iy,isz,isz);
+  if (sc>=0){ ctx.strokeStyle='#fbbf24'; ctx.lineWidth=2; ctx.strokeRect(ix+(scc-1)*ic, iy+(sr-1)*ic, 3*ic, 3*ic); }
+  step2_label(ctx, ix+isz/2, iy+isz+15, 'YOUR DIGIT');
+  // filter kernel (or placeholder)
+  if (step2_ker){ for (var r2=0;r2<3;r2++) for (var c2=0;c2<3;c2++){ var w=step2_ker[r2*3+c2], mag=Math.min(1,Math.abs(w)/1.5); ctx.fillStyle= w>0?'rgba(52,211,153,'+(0.2+mag*0.6)+')':(w<0?'rgba(248,113,113,'+(0.2+mag*0.6)+')':'#353072'); ctx.fillRect(kx+c2*kc, ky+r2*kc, kc-1.5, kc-1.5); ctx.fillStyle='#f0eefc'; ctx.font='8px "Poppins",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(w.toFixed(1), kx+c2*kc+kc/2, ky+r2*kc+kc/2); } }
+  else { for (var rb=0;rb<3;rb++) for (var cb=0;cb<3;cb++){ ctx.fillStyle='#2a2658'; ctx.fillRect(kx+cb*kc, ky+rb*kc, kc-1.5, kc-1.5); ctx.fillStyle='#8a85bd'; ctx.font='11px "Poppins",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('?', kx+cb*kc+kc/2, ky+rb*kc+kc/2); } }
+  step2_label(ctx, kx+1.5*kc, ky+3*kc+13, step2_kerTrained?'TRAINED FILTER':'FILTER');
+  // feature map (filled up to scan position)
+  for (var r3=0;r3<G;r3++) for (var c3=0;c3<G;c3++){ var idx3=r3*G+c3; if (map && sc>=0 && idx3<=sc){ var vv=map[idx3]/mmax, gg=Math.round(vv*255); ctx.fillStyle='rgb('+gg+','+gg+','+gg+')'; } else ctx.fillStyle='#0c0a1e'; ctx.fillRect(fmx+c3*fmc, fmy+r3*fmc, fmc+0.6, fmc+0.6); }
+  ctx.strokeStyle='#4a4490'; ctx.lineWidth=1; ctx.strokeRect(fmx,fmy,fsz,fsz);
+  if (sc>=0){ ctx.strokeStyle='#fbbf24'; ctx.lineWidth=1.5; ctx.strokeRect(fmx+scc*fmc, fmy+sr*fmc, fmc, fmc); }
+  step2_label(ctx, fmx+fsz/2, fmy+fsz+15, 'FEATURE MAP');
+  // nine features
+  ctx.textBaseline='middle';
+  for (var i=0;i<DETECTORS.length;i++){
+    var a=feats[i], lit=a>0.45, hov=(step2_hoverIdx===i), sel=(i===selDet), yy=step2_stripFy(i,H);
+    ctx.beginPath(); ctx.arc(Fx+6, yy, 6, 0, Math.PI*2); ctx.fillStyle= lit?'#fbbf24':'#353072'; ctx.fill(); ctx.strokeStyle= hov?'#60a5fa':(sel?'#fbbf24':'#8a85bd'); ctx.lineWidth=(hov||sel)?2:1; ctx.stroke();
+    step2_stripIcon(ctx, Fx+20, yy-8, 16, DETECTORS[i].icon);
+    ctx.fillStyle=(hov||sel)?'#f0eefc':'#c8c4e6'; ctx.font=((hov||sel)?'600 ':'')+'11px "DM Sans",sans-serif'; ctx.textAlign='left'; ctx.fillText(DETECTORS[i].name, Fx+42, yy);
+    var bx=Fx+168, bw=150; ctx.fillStyle='#1a173f'; ctx.fillRect(bx, yy-3.5, bw, 7); ctx.fillStyle= lit?'#fbbf24':'#4a4490'; ctx.fillRect(bx, yy-3.5, bw*Math.min(1,a), 7);
+    ctx.fillStyle= lit?'#fbbf24':'#8a85bd'; ctx.font='10px "Poppins",sans-serif'; ctx.textAlign='left'; ctx.fillText(a.toFixed(2), bx+bw+8, yy);
+  }
+  step2_label(ctx, Fx+160, H-8, 'NINE FEATURE DETECTORS');
+}
+function step2_onDraw(){ step2_drawStrip(); step2_renderOverlay(); }
+function step2_setCap(html){ var c=document.getElementById('step2Cap'); if (c) c.innerHTML=html; }
+function step2_updateControls(){
+  var tb=document.getElementById('step2TrainBtn'), sb=document.getElementById('step2ScanBtn');
+  if (tb) tb.disabled = (step2_selIdx<0 || step2_anim || step2_kerTrained);
+  if (sb) sb.disabled = (!step2_kerTrained || step2_anim);
+  var box=document.getElementById('step2FeatBtns');
+  if (box) for (var i=0;i<box.children.length;i++) box.children[i].classList.toggle('active', i===step2_selIdx);
+}
+function step2_pickFeat(i){
+  if (step2_anim) return;
+  step2_selIdx=i; step2_ker=step2_randKernel(); step2_kerB=0; step2_kerTrained=false; step2_scanPos=-1;
+  step2_setCap('The filter starts as <strong>random</strong> weights. Train it to detect <strong>' + STEP2_FEATS[i].name.toLowerCase() + '</strong>.');
+  step2_updateControls(); step2_drawStrip();
+}
+function step2_trainKer(){
+  if (step2_selIdx<0 || step2_anim || step2_kerTrained) return;
+  step2_anim=true; step2_updateControls();
+  var set=step2_kerSet(), done=0, total=90;
+  step2_setCap('<strong style="color:var(--gold)">Training the filter</strong> on tiny example patches, watch its weights sharpen.');
+  function tick(){
+    for (var e=0;e<4 && done<total;e++){ step2_kerTrainStep(set); done++; }
+    step2_drawStrip();
+    if (done<total) setTimeout(tick, 40);
+    else { step2_anim=false; step2_kerTrained=true; step2_seen=true; step2_setCap('<strong style="color:var(--green)">Filter trained</strong> to find ' + STEP2_FEATS[step2_selIdx].name.toLowerCase() + '. Now <strong>scan your digit</strong> with it.'); step2_updateControls(); step2_drawStrip(); updateNav(); }
+  }
+  tick();
+}
+function step2_scanDigit(){
+  if (!step2_kerTrained || step2_anim) return;
+  step2_anim=true; step2_scanPos=0; step2_updateControls();
+  step2_setCap('<strong style="color:var(--gold)">Scanning.</strong> The filter slides over every patch of your digit to build a feature map.');
+  function tick(){
+    step2_scanPos+=2; step2_drawStrip();
+    if (step2_scanPos < G*G-1) setTimeout(tick, 40);
+    else { step2_scanPos=G*G-1; step2_anim=false; step2_setCap('<strong style="color:var(--green)">Found it.</strong> The bright cells show where <strong>' + STEP2_FEATS[step2_selIdx].name.toLowerCase() + '</strong> appears on your digit. Try another feature, or read the nine detectors on the right.'); step2_updateControls(); step2_drawStrip(); step2_showReveal(); }
+  }
+  tick();
+}
+function step2_showReveal(){
+  var rv=document.getElementById('step2Reveal'); if (!rv || step2_revShown) return;
+  step2_revShown=true;
+  var feats=runDetectors(), fired=[];
+  for (var i=0;i<feats.length;i++) if (feats[i]>0.55) fired.push(DETECTORS[i].name.toLowerCase());
+  var ft = fired.length ? 'The loudest detectors on your digit are <strong>'+fired.join(', ')+'</strong>.' : 'Your detectors are fairly quiet on this digit.';
+  rv.innerHTML='<div class="reveal"><div class="reveal-title">Nine numbers now describe your digit</div><div class="reveal-body">'+ft+' Each detector is a filter like the one you trained. Your 256 pixels just became 9 feature values, and those numbers are what the next layer turns into a digit guess.</div></div>';
+  updateNav();
+}
+function step2_stripHover(e){
+  var canvas=document.getElementById('step2Strip'); if(!canvas) return;
+  var rect=canvas.getBoundingClientRect();
+  var x=(e.clientX-rect.left)*(canvas.width/rect.width), y=(e.clientY-rect.top)*(canvas.height/rect.height);
+  var H=canvas.height, Fx=356, band=(H-46)/(DETECTORS.length-1);
+  var hit=-1;
+  if (x>=Fx-8 && x<=Fx+330){ for (var i=0;i<DETECTORS.length;i++){ if (Math.abs(y-step2_stripFy(i,H)) < band/2){ hit=i; break; } } }
+  if (hit!==step2_hoverIdx){ step2_hoverIdx=hit; step2_renderOverlay(); step2_drawStrip(); }
+  canvas.style.cursor = hit>=0?'pointer':'default';
+}
+function step2_stripLeave(){ if (step2_hoverIdx>=0){ step2_hoverIdx=-1; step2_renderOverlay(); step2_drawStrip(); } }
 function step2_canAdvance() { return step2_seen; }
 function step2_post() {
-  step2_hoverIdx = -1;
-  initDrawCanvas('drawCanvas', step2_renderDetectors);
-  step2_renderDetectors();
+  step2_hoverIdx=-1; STEP2_CV_OPEN=false;
+  step2_selIdx=-1; step2_ker=null; step2_kerB=0; step2_kerTrained=false; step2_scanPos=-1; step2_anim=false; step2_revShown=false;
+  var total=0; for (var r=0;r<G;r++) for (var c=0;c<G;c++) total+=pixelGrid[r][c];
+  if (total<3){ var t=preprocessDigit(DIGIT_TEMPLATES[4]); for (var r2=0;r2<G;r2++) for (var c2=0;c2<G;c2++) pixelGrid[r2][c2]=t[r2*G+c2]; }
+  var strip=document.getElementById('step2Strip');
+  if (strip){ strip.width=920; strip.height=360; strip.onmousemove=step2_stripHover; strip.onmouseleave=step2_stripLeave; }
+  initDrawCanvas('drawCanvas', step2_onDraw);
+  renderDrawCanvas();
+  step2_setCap('Pick a feature above to start building a filter for it.');
+  step2_updateControls();
+  step2_drawStrip();
   updateNav();
 }
 
@@ -1119,14 +1210,13 @@ function step2_detectorCells(idx) {
   return cells;
 }
 
-// ----- convolution inset: how a feature detector "sees" a line -----
-// A self-contained mini-demo. A 3x3 weight kernel slides over a small fixed
-// image; each stop computes a weighted sum, building a feature map. This is
-// the same weighted-sum-of-inputs idea as a single neuron, applied repeatedly.
-var STEP2_CONV_OPEN = false;
-// 6x6 sample image with a thin horizontal stroke, so the 3x3 kernel can sit
-// cleanly on it (empty row, ink row, empty row) and give a strong response.
-var STEP2_CONV_IMG = [
+// ----- convolution: one guided discovery of finding a pattern anywhere -----
+// Replaces two separate insets with a single story. Goal: find a line no matter
+// where it sits. A KERNEL is the pattern we look for, as numbers. A CONVOLUTION
+// slides that kernel over every patch to find it. The twist the student
+// discovers: the kernel numbers are not hand-set, the network learns them.
+var STEP2_CV_OPEN = false;
+var STEP2_CV_IMG = [
   [0,0,0,0,0,0],
   [0,0,0,0,0,0],
   [1,1,1,1,1,1],
@@ -1134,149 +1224,194 @@ var STEP2_CONV_IMG = [
   [0,0,0,0,0,0],
   [0,0,0,0,0,0]
 ];
-// 3x3 horizontal-line kernel: rewards ink in the middle row, punishes above/below.
-var STEP2_CONV_KERNEL = [
-  [-1,-1,-1],
-  [ 1, 1, 1],
-  [-1,-1,-1]
+var STEP2_CV_LINEROW = 2;
+// 3x3 patches: a horizontal stroke is a match; vertical / solid / empty / diagonal are not.
+var STEP2_CV_SET = [
+  { patch:[0,0,0, 1,1,1, 0,0,0], label:1 },
+  { patch:[0,1,0, 0,1,0, 0,1,0], label:0 },
+  { patch:[1,1,1, 1,1,1, 1,1,1], label:0 },
+  { patch:[0,0,0, 0,0,0, 0,0,0], label:0 },
+  { patch:[1,0,0, 0,1,0, 0,0,1], label:0 }
 ];
-var step2_convPos = 0;          // 0..15, scan position (4x4 valid positions)
-var step2_convMap = [];         // accumulated feature-map responses
-var step2_convAnim = false;
+var step2_cvK = null;   // 9 kernel weights
+var step2_cvB = 0;      // bias, used only while training
+var step2_cvStage = 0;  // 0 random, 1 slid-random, 2 discovered, 3 slid-learned
+var step2_cvMap = null; // 4x4 feature map (16) or null
+var step2_cvScan = -1;  // slide position while animating, else -1
+var step2_cvAnim = false;
 
-function step2_toggleConv() {
-  STEP2_CONV_OPEN = !STEP2_CONV_OPEN;
-  var body = document.getElementById('step2ConvBody');
-  var caret = document.getElementById('step2ConvCaret');
-  if (body) body.style.display = STEP2_CONV_OPEN ? 'block' : 'none';
-  if (caret) caret.textContent = STEP2_CONV_OPEN ? '\u2013 hide' : '+ show me';
-  if (STEP2_CONV_OPEN) { step2_convReset(); }
+function step2_cvSetLine(row) {
+  STEP2_CV_LINEROW = row;
+  for (var r=0;r<6;r++) for (var c=0;c<6;c++) STEP2_CV_IMG[r][c] = (r===row) ? 1 : 0;
 }
-function step2_convReset() {
-  step2_convPos = 0;
-  step2_convMap = [];
-  for (var i=0;i<16;i++) step2_convMap.push(null);
-  step2_convRender();
+function step2_cvReset() {
+  if (step2_cvAnim) return;
+  step2_cvK = [0.18,-0.22,0.12, -0.05,0.20,-0.15, 0.10,-0.18,0.08];
+  step2_cvB = -0.1;
+  step2_cvStage = 0;
+  step2_cvMap = null;
+  step2_cvScan = -1;
+  step2_cvSetLine(2);
+  step2_cvRender();
 }
-function step2_convValid() { return 4; }   // 6-3+1 = 4 positions per axis
-function step2_convStep() {
-  if (step2_convAnim) return;
-  var n = step2_convValid()*step2_convValid();   // 16
-  if (step2_convPos >= n) { step2_convReset(); return; }
-  // compute response at current position
-  var pr = Math.floor(step2_convPos / step2_convValid());
-  var pc = step2_convPos % step2_convValid();
-  var sum = 0;
-  for (var kr=0;kr<3;kr++) for (var kc=0;kc<3;kc++) {
-    sum += STEP2_CONV_KERNEL[kr][kc] * STEP2_CONV_IMG[pr+kr][pc+kc];
-  }
-  step2_convMap[step2_convPos] = sum;
-  step2_convPos++;
-  step2_convRender();
+function step2_cvForward(patch) {
+  var z = step2_cvB;
+  for (var i=0;i<9;i++) z += step2_cvK[i]*patch[i];
+  return 1/(1+Math.exp(-z));
 }
-function step2_convAuto() {
-  if (step2_convAnim) return;
-  step2_convAnim = true;
-  function tick() {
-    var n = step2_convValid()*step2_convValid();
-    if (step2_convPos >= n) { step2_convAnim = false; step2_convRender(); return; }
-    var pr = Math.floor(step2_convPos / step2_convValid());
-    var pc = step2_convPos % step2_convValid();
-    var sum = 0;
-    for (var kr=0;kr<3;kr++) for (var kc=0;kc<3;kc++) {
-      sum += STEP2_CONV_KERNEL[kr][kc] * STEP2_CONV_IMG[pr+kr][pc+kc];
+function step2_cvTrain(n) {
+  var lr = 0.6, set = STEP2_CV_SET, m = set.length;
+  for (var s=0;s<n;s++) {
+    var gw=[0,0,0,0,0,0,0,0,0], gb=0;
+    for (var t=0;t<m;t++) {
+      var ex=set[t], a=step2_cvForward(ex.patch), dz=a-ex.label;
+      for (var i=0;i<9;i++) gw[i]+=dz*ex.patch[i];
+      gb+=dz;
     }
-    step2_convMap[step2_convPos] = sum;
-    step2_convPos++;
-    step2_convRender();
-    setTimeout(tick, 230);
+    for (var j=0;j<9;j++) step2_cvK[j]-=lr*gw[j]/m;
+    step2_cvB-=lr*gb/m;
+  }
+}
+function step2_cvDot(pr,pc) {
+  var sum=0;
+  for (var kr=0;kr<3;kr++) for (var kc=0;kc<3;kc++) sum += step2_cvK[kr*3+kc]*STEP2_CV_IMG[pr+kr][pc+kc];
+  return sum;
+}
+function step2_cvToggle() {
+  STEP2_CV_OPEN = !STEP2_CV_OPEN;
+  var body = document.getElementById('step2CvBody');
+  var caret = document.getElementById('step2CvCaret');
+  if (body) body.style.display = STEP2_CV_OPEN ? 'block' : 'none';
+  if (caret) caret.textContent = STEP2_CV_OPEN ? 'hide' : '+ show me';
+  if (STEP2_CV_OPEN) { if (!step2_cvK) step2_cvReset(); else step2_cvRender(); }
+}
+// convolution: slide the current kernel over every 3x3 patch, filling the map
+function step2_cvSlide() {
+  if (step2_cvAnim) return;
+  step2_cvAnim = true;
+  step2_cvMap = new Array(16);
+  for (var i=0;i<16;i++) step2_cvMap[i] = null;
+  step2_cvScan = 0;
+  var fromStage = step2_cvStage;
+  function tick() {
+    var pr = Math.floor(step2_cvScan/4), pc = step2_cvScan%4;
+    step2_cvMap[step2_cvScan] = step2_cvDot(pr,pc);
+    step2_cvScan++;
+    step2_cvRender();
+    if (step2_cvScan < 16) setTimeout(tick, 85);
+    else {
+      step2_cvScan = -1;
+      step2_cvAnim = false;
+      step2_cvStage = (fromStage >= 2) ? 3 : 1;
+      step2_cvRender();
+    }
   }
   tick();
 }
-function step2_convRender() {
-  var body = document.getElementById('step2ConvBody');
-  if (!body) return;
-  var V = step2_convValid();
-  var n = V*V;
-  var done = step2_convPos >= n;
-  var atPr = done ? -1 : Math.floor(step2_convPos / V);
-  var atPc = done ? -1 : step2_convPos % V;
-
-  // --- the sample image with the kernel window drawn on it ---
-  var cell = 26, imgW = 6*cell;
-  var img = '<svg viewBox="0 0 ' + imgW + ' ' + imgW + '" style="width:156px;height:156px">';
+// discovery: train the kernel from random until it becomes the line pattern
+function step2_cvDiscover() {
+  if (step2_cvAnim) return;
+  step2_cvAnim = true;
+  step2_cvMap = null;   // the new kernel needs a fresh slide
+  var done = 0, frames = 45;
+  function tick() {
+    step2_cvTrain(18);
+    done++;
+    step2_cvRender();
+    if (done < frames) setTimeout(tick, 36);
+    else { step2_cvAnim = false; step2_cvStage = 2; step2_cvRender(); }
+  }
+  tick();
+}
+// move the line to a new row and re-run the convolution, so the bright spot follows
+function step2_cvMoveLine() {
+  if (step2_cvAnim) return;
+  var next = STEP2_CV_LINEROW + 1;
+  if (next > 4) next = 1;   // keep the line where a 3x3 window can center on it
+  step2_cvSetLine(next);
+  step2_cvMap = new Array(16);
+  for (var i=0;i<16;i++) { var pr=Math.floor(i/4), pc=i%4; step2_cvMap[i] = step2_cvDot(pr,pc); }
+  step2_cvStage = 3;
+  step2_cvRender();
+}
+var STEP2_CV_CAP = 'font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px';
+function step2_cvImgSVG() {
+  var cell=26, W=6*cell;
+  var s = '<svg viewBox="0 0 ' + W + ' ' + W + '" style="width:148px;height:148px">';
   for (var r=0;r<6;r++) for (var c=0;c<6;c++) {
-    var v = STEP2_CONV_IMG[r][c];
-    img += '<rect x="' + (c*cell) + '" y="' + (r*cell) + '" width="' + (cell-1) + '" height="' + (cell-1)
-      + '" fill="' + (v?'#fbbf24':'#2a2658') + '" rx="2"></rect>';
+    var v = STEP2_CV_IMG[r][c];
+    s += '<rect x="' + (c*cell) + '" y="' + (r*cell) + '" width="' + (cell-1) + '" height="' + (cell-1) + '" rx="2" fill="' + (v?'#fbbf24':'#2a2658') + '"></rect>';
   }
-  if (!done) {
-    img += '<rect x="' + (atPc*cell-1) + '" y="' + (atPr*cell-1) + '" width="' + (3*cell) + '" height="' + (3*cell)
-      + '" fill="none" stroke="#60a5fa" stroke-width="2.5" rx="3"></rect>';
+  if (step2_cvScan >= 0) {
+    var pr = Math.floor(step2_cvScan/4), pc = step2_cvScan%4;
+    s += '<rect x="' + (pc*cell-1) + '" y="' + (pr*cell-1) + '" width="' + (3*cell) + '" height="' + (3*cell) + '" fill="none" stroke="#60a5fa" stroke-width="2.5" rx="3"></rect>';
   }
-  img += '</svg>';
-
-  // --- the kernel weights ---
-  var kc2 = 22;
-  var ker = '<svg viewBox="0 0 ' + (3*kc2) + ' ' + (3*kc2) + '" style="width:78px;height:78px">';
-  for (var r2=0;r2<3;r2++) for (var c2=0;c2<3;c2++) {
-    var w = STEP2_CONV_KERNEL[r2][c2];
-    var kfill = w > 0 ? '#34d399' : (w < 0 ? '#f87171' : '#353072');
-    ker += '<rect x="' + (c2*kc2) + '" y="' + (r2*kc2) + '" width="' + (kc2-1) + '" height="' + (kc2-1) + '" fill="' + kfill + '" rx="2"></rect>';
-    ker += '<text x="' + (c2*kc2+kc2/2) + '" y="' + (r2*kc2+kc2/2+3.5) + '" text-anchor="middle" font-size="10" font-family="Poppins" font-weight="600" fill="#1e1b4b">' + (w>0?'+':'') + w + '</text>';
+  s += '</svg>';
+  return s;
+}
+function step2_cvKerSVG() {
+  var c=26, W=3*c;
+  var s = '<svg viewBox="0 0 ' + W + ' ' + W + '" style="width:78px;height:78px">';
+  for (var r=0;r<3;r++) for (var cc=0;cc<3;cc++) {
+    var w = step2_cvK[r*3+cc];
+    var mag = Math.min(1, Math.abs(w)/1.6);
+    var fill = w >= 0 ? 'rgba(52,211,153,' + (0.14+mag*0.76).toFixed(2) + ')' : 'rgba(248,113,113,' + (0.14+mag*0.76).toFixed(2) + ')';
+    s += '<rect x="' + (cc*c) + '" y="' + (r*c) + '" width="' + (c-1.5) + '" height="' + (c-1.5) + '" rx="2" fill="' + fill + '"></rect>';
+    s += '<text x="' + (cc*c+c/2) + '" y="' + (r*c+c/2+3) + '" text-anchor="middle" font-size="8.5" font-family="Poppins" font-weight="600" fill="#f0eefc">' + w.toFixed(1) + '</text>';
   }
-  ker += '</svg>';
-
-  // --- the feature map being built ---
-  var fc = 30, fmW = V*fc;
-  var fmap = '<svg viewBox="0 0 ' + fmW + ' ' + fmW + '" style="width:130px;height:130px">';
-  for (var fr=0;fr<V;fr++) for (var fcx=0;fcx<V;fcx++) {
-    var idx = fr*V+fcx;
-    var resp = step2_convMap[idx];
-    var fill, txt = '';
-    if (resp === null) { fill = '#231f4d'; }
+  s += '</svg>';
+  return s;
+}
+function step2_cvMapSVG() {
+  var c=30, V=4, W=V*c;
+  var s = '<svg viewBox="0 0 ' + W + ' ' + W + '" style="width:120px;height:120px">';
+  for (var r=0;r<V;r++) for (var cc=0;cc<V;cc++) {
+    var idx = r*V+cc;
+    var resp = step2_cvMap ? step2_cvMap[idx] : null;
+    var fill;
+    if (resp === null || resp === undefined) fill = '#231f4d';
     else {
-      // map response (range roughly -3..3) to brightness
-      var norm = Math.max(0, Math.min(1, (resp+3)/6));
-      var g = Math.round(40 + norm*200);
-      fill = resp > 0.5 ? 'rgb(' + Math.round(60+norm*191) + ',' + Math.round(58+norm*133) + ',60)'
-            : (resp < -0.5 ? '#3a2545' : '#2f2a5c');
-      txt = '<text x="' + (fcx*fc+fc/2) + '" y="' + (fr*fc+fc/2+3.5) + '" text-anchor="middle" font-size="9" font-family="Poppins" font-weight="600" fill="' + (resp>0.5?'#1e1b4b':'#8a85bd') + '">' + resp + '</text>';
+      var b = Math.max(0, Math.min(1, resp/6));   // fixed scale: bright only on a strong match
+      fill = 'rgb(' + Math.round(42+b*209) + ',' + Math.round(40+b*151) + ',' + Math.round(90-b*54) + ')';
     }
-    var hot = (idx === step2_convPos-1);
-    fmap += '<rect x="' + (fcx*fc) + '" y="' + (fr*fc) + '" width="' + (fc-1.5) + '" height="' + (fc-1.5)
-      + '" fill="' + fill + '" rx="2" stroke="' + (hot?'#60a5fa':'none') + '" stroke-width="2"></rect>' + txt;
+    var hot = (step2_cvScan-1) === idx;
+    s += '<rect x="' + (cc*c) + '" y="' + (r*c) + '" width="' + (c-1.5) + '" height="' + (c-1.5) + '" rx="2" fill="' + fill + '" stroke="' + (hot?'#60a5fa':'none') + '" stroke-width="2"></rect>';
   }
-  fmap += '</svg>';
-
-  // --- the math at the current stop ---
-  var mathLine;
-  if (done) {
-    mathLine = '<span style="color:var(--green)">Done.</span> The bright cells trace exactly where the horizontal stroke is. That grid of responses is a <strong>feature map</strong>.';
+  s += '</svg>';
+  return s;
+}
+function step2_cvRender() {
+  var body = document.getElementById('step2CvBody');
+  if (!body) return;
+  var stage = step2_cvStage, story, btns = '';
+  var B = function(kind,fn,label){ return '<button class="btn ' + kind + '" onclick="' + fn + '" style="padding:7px 14px;font-size:12px">' + label + '</button>'; };
+  if (step2_cvAnim && step2_cvScan >= 0) {
+    story = 'Sliding the kernel over each patch, multiplying and adding as it goes. That sweep is the <strong style="color:var(--blue)">convolution</strong>.';
+  } else if (step2_cvAnim) {
+    story = 'Training. The kernel is changing its own numbers to match lines and reject everything else. Watch the pattern appear.';
+  } else if (stage === 0) {
+    story = 'A <strong>kernel</strong> is the pattern we are looking for, written as numbers. This one is random, it is not looking for anything yet. Slide it across the image and see.';
+    btns = B('btn-primary','step2_cvSlide()','Slide it over the image');
+  } else if (stage === 1) {
+    story = 'A <strong style="color:var(--blue)">convolution</strong> checks the pattern in every patch. But random numbers match nothing, the map stays dark. So where does the right kernel come from?';
+    btns = B('btn-primary','step2_cvDiscover()','Let the network discover it') + B('btn-ghost','step2_cvReset()','Start over');
+  } else if (stage === 2) {
+    story = 'The network discovered the pattern by training: a bright row with dark weights above and below, a horizontal line, as numbers. Now slide this learned kernel.';
+    btns = B('btn-primary','step2_cvSlide()','Slide the learned kernel');
   } else {
-    var pr3 = atPr, pc3 = atPc, terms = [], runSum = 0;
-    for (var mr=0;mr<3;mr++) for (var mc=0;mc<3;mc++) {
-      var pv = STEP2_CONV_IMG[pr3+mr][pc3+mc];
-      var kw = STEP2_CONV_KERNEL[mr][mc];
-      runSum += pv*kw;
-    }
-    mathLine = 'At this spot: multiply the 9 pixels under the window by the 9 kernel weights, add them up &rarr; <strong style="color:' + (runSum>0.5?'var(--green)':(runSum<-0.5?'var(--red)':'var(--text)')) + '">' + runSum + '</strong>. High where the pattern matches.';
+    story = 'Found it. The map lights up exactly where the line is. Move the line and the bright spot follows, one kernel finds the pattern <strong>anywhere in the image</strong>.';
+    btns = B('btn-primary','step2_cvMoveLine()','Move the line') + B('btn-ghost','step2_cvReset()','Start over');
   }
-
+  var kerLabel = (stage >= 2) ? 'Learned kernel' : 'Kernel';
   body.innerHTML = ''
-    + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:11px">'
-    +   'A detector is a small grid of weights called a <strong>kernel</strong>. It slides across the image, and at every spot it does the same thing a single neuron does: multiply inputs by weights and sum. Slide it everywhere and you get a <strong>feature map</strong>. That sliding is called a <strong style="color:var(--blue)">convolution</strong>.'
-    + '</div>'
+    + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">Goal: find a line no matter <em>where</em> it sits in the image.</div>'
     + '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center">'
-    +   '<div style="text-align:center"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Image</div>' + img + '</div>'
-    +   '<div style="text-align:center"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Line kernel</div>' + ker + '</div>'
-    +   '<div style="text-align:center"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Feature map</div>' + fmap + '</div>'
+    +   '<div style="text-align:center"><div style="' + STEP2_CV_CAP + '">Image</div>' + step2_cvImgSVG() + '</div>'
+    +   '<div style="text-align:center"><div style="' + STEP2_CV_CAP + '">' + kerLabel + '</div>' + step2_cvKerSVG() + '</div>'
+    +   '<div style="text-align:center"><div style="' + STEP2_CV_CAP + '">Feature map</div>' + step2_cvMapSVG() + '</div>'
     + '</div>'
-    + '<div style="font-size:11.5px;color:var(--text2);line-height:1.5;margin-top:11px;text-align:center;min-height:32px">' + mathLine + '</div>'
-    + '<div style="display:flex;gap:8px;justify-content:center;margin-top:8px">'
-    +   '<button class="btn btn-primary" onclick="step2_convStep()" style="padding:7px 14px;font-size:12px">' + (done?'Run again':'Slide one step') + '</button>'
-    +   '<button class="btn btn-ghost" onclick="step2_convAuto()" style="padding:7px 14px;font-size:12px">Auto-slide</button>'
-    + '</div>';
+    + '<div style="font-size:11.5px;color:var(--text2);line-height:1.5;margin-top:12px;text-align:center;min-height:46px">' + story + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap">' + btns + '</div>';
 }
 
 // ============================================================
@@ -1907,12 +2042,527 @@ function step4_post() {
   step4_renderQuiz();
   updateNav();
 }
+
+// ============================================================
+// STEP 5 - the whole model: a real compact CNN, end to end
+// ============================================================
+// A genuine (small) convolutional network the student's drawing flows through,
+// visualized as one connected diagram: input 16x16 -> conv (8 fixed 3x3 filters,
+// ReLU) -> maxpool 2x2 -> flatten -> hidden FC (20, ReLU, trained) -> output FC
+// (10, softmax, trained). The conv filters are fixed edge/blob detectors (real
+// convolution, no training needed); the two FC layers are trained in-browser by
+// backprop on augmented copies of the digit templates. Small data, so accuracy
+// is modest, but every layer is real and lights up live.
+var step5_hasDrawn = false;
+
+// fixed 3x3 conv filters: oriented edges, diagonals, blob, gradients, area
+var CNN_K = [
+  [-1,-1,-1,  2, 2, 2, -1,-1,-1],   // horizontal edge
+  [-1, 2,-1, -1, 2,-1, -1, 2,-1],   // vertical edge
+  [ 2,-1,-1, -1, 2,-1, -1,-1, 2],   // diagonal backslash
+  [-1,-1, 2, -1, 2,-1,  2,-1,-1],   // diagonal slash
+  [-1,-1,-1, -1, 8,-1, -1,-1,-1],   // blob / center-surround
+  [-1, 0, 1, -2, 0, 2, -1, 0, 1],   // gradient x
+  [-1,-2,-1,  0, 0, 0,  1, 2, 1],   // gradient y
+  [ 1, 1, 1,  1, 1, 1,  1, 1, 1]    // area / smoothing
+];
+var CNN_NK = CNN_K.length;   // 8
+// second conv layer: 3x3 filters applied to each pooled layer-1 map (depthwise),
+// cycled across channels, so the network looks for patterns *in* the features.
+var CNN_K2 = [
+  [-1,-1,-1, -1, 8,-1, -1,-1,-1],   // blob of activity
+  [ 0,-1, 0, -1, 5,-1,  0,-1, 0]    // sharpen / peak
+];
+var CNN_K_NAMES = ['horizontal edge','vertical edge','diagonal \\','diagonal /','blob','gradient x','gradient y','bright area'];
+var CNN_K2_NAMES = ['peak of activity','sharpened edge'];
+var step5_hover = null;   // {type:'conv1'|'conv2', k} when hovering a feature map
+var step5_flowT = -1;     // active connection group (0..3) during a training flow
+var step5_walkLabel = -1; // label the student assigned to their drawn digit
+var step5_beat = 0;       // current walkthrough beat (0=idle, 1..5)
+var step5_anim = false;   // an animation is playing
+var step5_walkBefore = 0; // confidence before a nudge
+var CNN_HID = 20;
+var CNN = null;              // {W1,b1,W2,b2}
+var CNN_TRAINED = false;
+var CNN_TRAIN = null;
+var CNN_SCALE = 1;
+var cnn_trainProgress = 0;
+
+function cnn_convPool(flat) {
+  var conv = [], pool = [];
+  for (var k=0;k<CNN_NK;k++) {
+    var ker = CNN_K[k], cm = new Array(G*G);
+    for (var r=0;r<G;r++) for (var c=0;c<G;c++) {
+      var s = 0;
+      for (var kr=-1;kr<=1;kr++) for (var kc=-1;kc<=1;kc++) {
+        var rr=r+kr, cc=c+kc;
+        var v = (rr>=0&&rr<G&&cc>=0&&cc<G) ? flat[rr*G+cc] : 0;
+        s += v * ker[(kr+1)*3+(kc+1)];
+      }
+      cm[r*G+c] = s>0 ? s : 0;   // ReLU
+    }
+    conv.push(cm);
+    var pm = new Array(64);
+    for (var pr=0;pr<8;pr++) for (var pc=0;pc<8;pc++) {
+      var m = 0;
+      for (var a=0;a<2;a++) for (var b=0;b<2;b++) { var vv = cm[(pr*2+a)*G+(pc*2+b)]; if (vv>m) m=vv; }
+      pm[pr*8+pc] = m;
+    }
+    pool.push(pm);
+  }
+  return { conv: conv, pool: pool };
+}
+// second conv: for each pooled layer-1 map (8x8), apply a fixed 3x3 filter and
+// ReLU, then pool 2x2 to 4x4. Returns conv2 maps (8x8) and pooled maps (4x4).
+function cnn_conv2(pool1) {
+  var conv = [], pool = [];
+  for (var k=0;k<CNN_NK;k++) {
+    var ker = CNN_K2[k % CNN_K2.length], m = pool1[k], cm = new Array(64);
+    for (var r=0;r<8;r++) for (var c=0;c<8;c++) {
+      var s = 0;
+      for (var kr=-1;kr<=1;kr++) for (var kc=-1;kc<=1;kc++) {
+        var rr=r+kr, cc=c+kc;
+        var v = (rr>=0&&rr<8&&cc>=0&&cc<8) ? m[rr*8+cc] : 0;
+        s += v * ker[(kr+1)*3+(kc+1)];
+      }
+      cm[r*8+c] = s>0 ? s : 0;   // ReLU
+    }
+    conv.push(cm);
+    var pm = new Array(16);
+    for (var pr=0;pr<4;pr++) for (var pc=0;pc<4;pc++) {
+      var mx=0; for (var a=0;a<2;a++) for (var b=0;b<2;b++){ var vv=cm[(pr*2+a)*8+(pc*2+b)]; if (vv>mx) mx=vv; } pm[pr*4+pc]=mx;
+    }
+    pool.push(pm);
+  }
+  return { conv: conv, pool: pool };
+}
+// full feature extraction through both conv layers; x is the flattened layer-2
+// pooled maps (8 maps x 4x4 = 128) fed to the FC layers.
+function cnn_extract(flat) {
+  var l1 = cnn_convPool(flat);
+  var l2 = cnn_conv2(l1.pool);
+  var x = new Array(CNN_NK*16);
+  for (var k=0;k<CNN_NK;k++) for (var i=0;i<16;i++) x[k*16+i] = l2.pool[k][i];
+  return { conv1: l1.conv, pool1: l1.pool, conv2: l2.conv, pool2: l2.pool, x: x };
+}
+function cnn_norm(x) {
+  // L2-normalize each vector to unit length: keeps inputs O(1) no matter how
+  // sparse the conv activations are, so ReLU units do not die during training.
+  var s = 0;
+  for (var i=0;i<x.length;i++) s += x[i]*x[i];
+  var inv = 1/(Math.sqrt(s) + 1e-6);
+  var o = new Array(x.length);
+  for (var j=0;j<x.length;j++) o[j] = x[j]*inv;
+  return o;
+}
+function cnn_init() {
+  CNN = { W1:[], b1:[], W2:[], b2:[], vW1:[], vb1:[], vW2:[], vb2:[] };
+  var nin = CNN_NK*16;
+  for (var h=0;h<CNN_HID;h++){ var w=[]; for (var i=0;i<nin;i++) w.push((Math.random()-0.5)*0.1); CNN.W1.push(w); CNN.b1.push(0); CNN.vW1.push(new Float64Array(nin)); CNN.vb1.push(0); }
+  for (var o=0;o<10;o++){ var w2=[]; for (var j=0;j<CNN_HID;j++) w2.push((Math.random()-0.5)*0.2); CNN.W2.push(w2); CNN.b2.push(0); CNN.vW2.push(new Float64Array(CNN_HID)); CNN.vb2.push(0); }
+  CNN_TRAINED = false;
+}
+function cnn_buildTrain() {
+  if (CNN_TRAIN) return CNN_TRAIN;
+  var raws = [], labels = [];
+  var shifts = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[2,0],[-2,0],[0,2],[0,-2]];
+  for (var d=0; d<DIGIT_TEMPLATES.length; d++) {
+    var canon = preprocessDigit(DIGIT_TEMPLATES[d]);
+    var variants = [canon, preprocessDigit(dilateGrid(canon)), preprocessDigit(erodeGrid(canon)),
+                    preprocessDigit(warpT(canon,1,0,0.12)), preprocessDigit(warpT(canon,-1,0,-0.12))];
+    for (var vi=0; vi<variants.length; vi++) for (var s=0;s<shifts.length;s++) {
+      var moved = shiftGrid(variants[vi], shifts[s][0], shifts[s][1]);
+      raws.push(cnn_extract(moved).x);
+      labels.push(d);
+    }
+  }
+  var nin = raws[0].length, n = raws.length;
+  // one global scale so features are O(1); robust for sparse conv activations
+  // (per-feature standardization would blow up rarely-active cells).
+  var sumAbs = 0, cnt = 0;
+  for (var t=0;t<n;t++) for (var i=0;i<nin;i++){ sumAbs += Math.abs(raws[t][i]); cnt++; }
+  CNN_SCALE = 1/((sumAbs/cnt) + 1e-6);
+  CNN_TRAIN = [];
+  for (var t3=0;t3<n;t3++) CNN_TRAIN.push({ x: cnn_norm(raws[t3]), y: labels[t3] });
+  return CNN_TRAIN;
+}
+function cnn_forwardX(x) {
+  var nin = x.length, h = new Array(CNN_HID);
+  for (var j=0;j<CNN_HID;j++){ var s=CNN.b1[j], w=CNN.W1[j]; for (var i=0;i<nin;i++) s+=w[i]*x[i]; h[j]= s>0?s:0; }
+  var z = new Array(10);
+  for (var o=0;o<10;o++){ var s2=CNN.b2[o], w2=CNN.W2[o]; for (var j2=0;j2<CNN_HID;j2++) s2+=w2[j2]*h[j2]; z[o]=s2; }
+  var mx=-1e9; for (var m=0;m<10;m++) if (z[m]>mx) mx=z[m];
+  var p=new Array(10), sum=0; for (var e=0;e<10;e++){ p[e]=Math.exp(z[e]-mx); sum+=p[e]; } for (var q=0;q<10;q++) p[q]/=sum;
+  return { h:h, p:p };
+}
+// Full-batch gradient descent: accumulate gradients over every example, then
+// take one averaged step. Order-independent (the training set is grouped by
+// digit), so it converges smoothly where per-example SGD chased the last class.
+function cnn_trainEpoch(set, lr) {
+  var nin = CNN_NK*16, n = set.length, j, o, i;
+  var gW1 = [], gb1 = new Array(CNN_HID), gW2 = [], gb2 = new Array(10);
+  for (j=0;j<CNN_HID;j++){ gW1.push(new Float64Array(nin)); gb1[j]=0; }
+  for (o=0;o<10;o++){ gW2.push(new Float64Array(CNN_HID)); gb2[o]=0; }
+  for (var t=0;t<n;t++) {
+    var ex = set[t], x = ex.x;
+    var hpre = new Array(CNN_HID), h = new Array(CNN_HID);
+    for (j=0;j<CNN_HID;j++){ var s=CNN.b1[j], w=CNN.W1[j]; for (i=0;i<nin;i++) s+=w[i]*x[i]; hpre[j]=s; h[j]= s>0?s:0; }
+    var z = new Array(10);
+    for (o=0;o<10;o++){ var s2=CNN.b2[o], w2=CNN.W2[o]; for (j=0;j<CNN_HID;j++) s2+=w2[j]*h[j]; z[o]=s2; }
+    var mx=-1e9; for (var m=0;m<10;m++) if (z[m]>mx) mx=z[m];
+    var p=new Array(10), sum=0; for (var e=0;e<10;e++){ p[e]=Math.exp(z[e]-mx); sum+=p[e]; } for (var q=0;q<10;q++) p[q]/=sum;
+    var dz2 = new Array(10); for (o=0;o<10;o++) dz2[o] = p[o]-(o===ex.y?1:0);
+    var dh = new Array(CNN_HID);
+    for (j=0;j<CNN_HID;j++){ var g=0; for (o=0;o<10;o++) g+=CNN.W2[o][j]*dz2[o]; dh[j]= hpre[j]>0?g:0; }
+    for (o=0;o<10;o++){ var gw2=gW2[o], d2=dz2[o]; for (j=0;j<CNN_HID;j++) gw2[j]+=d2*h[j]; gb2[o]+=d2; }
+    for (j=0;j<CNN_HID;j++){ var dhj=dh[j]; if (dhj!==0){ var gw1=gW1[j]; for (i=0;i<nin;i++) gw1[i]+=dhj*x[i]; gb1[j]+=dhj; } }
+  }
+  var step = lr/n, MU = 0.9;
+  for (j=0;j<CNN_HID;j++){ var w1u=CNN.W1[j], g1=gW1[j], v1=CNN.vW1[j]; for (i=0;i<nin;i++){ v1[i]=MU*v1[i]-step*g1[i]; w1u[i]+=v1[i]; } CNN.vb1[j]=MU*CNN.vb1[j]-step*gb1[j]; CNN.b1[j]+=CNN.vb1[j]; }
+  for (o=0;o<10;o++){ var w2u=CNN.W2[o], g2=gW2[o], v2=CNN.vW2[o]; for (j=0;j<CNN_HID;j++){ v2[j]=MU*v2[j]-step*g2[j]; w2u[j]+=v2[j]; } CNN.vb2[o]=MU*CNN.vb2[o]-step*gb2[o]; CNN.b2[o]+=CNN.vb2[o]; }
+}
+function cnn_startTraining() {
+  if (!CNN) cnn_init();
+  var set = cnn_buildTrain();
+  var total = 70, done = 0;
+  cnn_trainProgress = 0;
+  step5_predict();
+  function chunk() {
+    for (var e=0;e<5 && done<total;e++){ cnn_trainEpoch(set, 0.8); done++; }
+    cnn_trainProgress = done/total;
+    step5_predict();
+    if (done < total) setTimeout(chunk, 16);
+    else { CNN_TRAINED = true; cnn_trainProgress = 1; step5_predict(); }
+  }
+  setTimeout(chunk, 16);
+}
+
+function renderStep5() {
+  return ''
+    + '<div class="step-header">'
+    +   '<div class="step-title">The <em>whole model</em>, end to end</div>'
+    +   '<div class="do-this"><span><strong>Draw a digit</strong>, then train the network below and watch it learn, right on the diagram.</span></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">'
+    +   '<div>'
+    +     '<div class="section-label">Your digit</div>'
+    +     '<div class="draw-tools">'
+    +       '<button class="tool-btn active" id="drawBtn" onclick="setDrawMode(1)">Draw</button>'
+    +       '<button class="tool-btn" id="eraseBtn" onclick="setDrawMode(0)">Erase</button>'
+    +       '<button class="tool-btn" onclick="clearDrawing()">Clear</button>'
+    +     '</div>'
+    +     '<div class="canvas-wrap"><canvas id="drawCanvas" width="' + CSIZE + '" height="' + CSIZE + '" style="width:150px;max-width:100%;touch-action:none"></canvas></div>'
+    +   '</div>'
+    +   '<div id="step5Readout" style="flex:1;min-width:200px"></div>'
+    + '</div>'
+    + '<div class="section-label">pixels &rarr; conv 1 &rarr; conv 2 &rarr; hidden &rarr; output</div>'
+    + '<canvas id="step5Canvas" style="width:100%;display:block"></canvas>'
+    + '<div class="panel" style="margin-top:14px;border-color:rgba(251,191,36,0.35)">'
+    +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">'
+    +     '<span style="font-size:9px;font-weight:700;letter-spacing:0.6px;color:var(--bg-deep);background:var(--gold);border-radius:5px;padding:4px 7px">TRAIN IT</span>'
+    +     '<span style="font-size:13px;font-weight:600;color:var(--text)">Watch the learning loop run on the diagram above</span>'
+    +   '</div>'
+    +   '<div id="step5BeatBar" style="display:flex;gap:5px;margin-bottom:10px"></div>'
+    +   '<div id="step5Caption" style="text-align:center;font-size:13px;color:var(--text2);font-weight:300;min-height:40px;display:flex;align-items:center;justify-content:center;line-height:1.5"><span>The network starts untrained, so its guess is random. <strong style="color:var(--text)">Walk a step</strong> plays the loop in slow motion on the diagram; <strong style="color:var(--text)">Train fully</strong> runs it to the end.</span></div>'
+    +   '<div style="display:flex;gap:8px;justify-content:center;margin-top:6px;flex-wrap:wrap">'
+    +     '<button class="btn btn-primary" id="step5WalkBtn" onclick="step5_walk()">Walk one learning step</button>'
+    +     '<button class="btn btn-ghost" id="step5TrainBtn" onclick="step5_trainFully()">Train it fully</button>'
+    +   '</div>'
+    + '</div>';
+}
+function cnn_label(ctx, x, y, s) {
+  ctx.fillStyle='#8a85bd'; ctx.font='600 10px "DM Sans",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.fillText(s, x, y);
+}
+function cnn_draw(canvas, proc, act, fwd, win, empty) {
+  var ctx = canvas.getContext('2d');
+  var W=canvas.width, H=canvas.height, NK=CNN_NK, hn=CNN_HID, ft=step5_flowT;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#1e1b4b'; ctx.fillRect(0,0,W,H);
+  var NIN=32, inx=48, inR=4.5;
+  var c1x=112, m1=36, g1=6, t1=14, mc1=m1/G;
+  var c2x=232, m2=32, g2=6, t2=28, mc2=m2/8;
+  var hx=478, hr=6, ox=726, aX=922;
+  function iny(i){ return 22 + i*((H-44)/(NIN-1)); }
+  function my1(k){ return t1 + k*(m1+g1) + m1/2; }
+  function my2(k){ return t2 + k*(m2+g2) + m2/2; }
+  function hy(j){ return 24 + j*((H-52)/(hn-1)); }
+  function oy(o){ return 34 + o*((H-74)/9); }
+  var inVal = new Array(NIN);
+  for (var ii=0;ii<NIN;ii++){ var s=0; for (var b=0;b<8;b++){ var idx=ii*8+b; s += proc?proc[idx]:0; } inVal[ii]=s/8; }
+  // ---- connection meshes (faint; the active layer glows gold during a flow) ----
+  var GOLD='rgba(251,191,36,0.55)';
+  ctx.strokeStyle = (ft===0)?GOLD:'rgba(140,135,210,0.10)'; ctx.lineWidth = (ft===0)?1.5:0.8;
+  for (var q0=0;q0<NIN;q0++) for (var k0=0;k0<NK;k0++){ ctx.beginPath(); ctx.moveTo(inx+inR, iny(q0)); ctx.lineTo(c1x, my1(k0)); ctx.stroke(); }
+  ctx.strokeStyle = (ft===1)?GOLD:'rgba(140,135,210,0.12)'; ctx.lineWidth = (ft===1)?1.5:0.8;
+  for (var a1=0;a1<NK;a1++) for (var b1=0;b1<NK;b1++){ ctx.beginPath(); ctx.moveTo(c1x+m1, my1(a1)); ctx.lineTo(c2x, my2(b1)); ctx.stroke(); }
+  ctx.strokeStyle = (ft===2)?GOLD:'rgba(140,135,210,0.10)'; ctx.lineWidth = (ft===2)?1.4:0.8;
+  for (var a2=0;a2<NK;a2++) for (var j=0;j<hn;j++){ ctx.beginPath(); ctx.moveTo(c2x+m2, my2(a2)); ctx.lineTo(hx, hy(j)); ctx.stroke(); }
+  for (var jj=0;jj<hn;jj++) for (var oo=0;oo<10;oo++){ ctx.strokeStyle=(ft===3)?GOLD:((oo===win)?'rgba(251,191,36,0.18)':'rgba(140,135,210,0.09)'); ctx.lineWidth=(ft===3)?1.3:0.8; ctx.beginPath(); ctx.moveTo(hx+hr, hy(jj)); ctx.lineTo(ox, oy(oo)); ctx.stroke(); }
+  if (fwd && win>=0){ ctx.strokeStyle='rgba(251,191,36,0.9)'; ctx.lineWidth=2.6; ctx.beginPath(); ctx.moveTo(ox+16, oy(win)); ctx.lineTo(aX-27, H/2); ctx.stroke(); }
+  ctx.lineWidth=1;
+  // ---- input neuron column ----
+  for (var n=0;n<NIN;n++){ var g=Math.round(30 + inVal[n]*225); ctx.beginPath(); ctx.arc(inx, iny(n), inR, 0, Math.PI*2); ctx.fillStyle='rgb('+g+','+g+','+g+')'; ctx.fill(); ctx.strokeStyle='rgba(138,133,189,0.55)'; ctx.lineWidth=0.6; ctx.stroke(); }
+  cnn_label(ctx, inx, H-8, 'INPUT 256');
+  // ---- conv 1 maps (grayscale) ----
+  for (var k3=0;k3<NK;k3++){
+    var x0=c1x, y0=t1+k3*(m1+g1), map= act?act.conv1[k3]:null, mmax=0.0001;
+    if (map) for (var mi=0;mi<map.length;mi++) if (map[mi]>mmax) mmax=map[mi];
+    if (map){ for (var r2=0;r2<G;r2++) for (var c2=0;c2<G;c2++){ var vv=map[r2*G+c2]/mmax, gg=Math.round(vv*255); ctx.fillStyle='rgb('+gg+','+gg+','+gg+')'; ctx.fillRect(x0+c2*mc1, y0+r2*mc1, mc1+0.6, mc1+0.6); } }
+    else { ctx.fillStyle='#141230'; ctx.fillRect(x0,y0,m1,m1); }
+    var g1h=(step5_hover&&step5_hover.type==='conv1'&&step5_hover.k===k3)||ft===0;
+    ctx.lineWidth=g1h?2:0.5; ctx.strokeStyle=g1h?'#fbbf24':'#4a4490'; ctx.strokeRect(x0,y0,m1,m1);
+  }
+  ctx.lineWidth=1; cnn_label(ctx, c1x+m1/2, t1+NK*(m1+g1)+8, 'CONV 1');
+  // ---- conv 2 maps (grayscale) ----
+  for (var k4=0;k4<NK;k4++){
+    var x1=c2x, y1=t2+k4*(m2+g2), map2= act?act.conv2[k4]:null, mm2=0.0001;
+    if (map2) for (var mj=0;mj<map2.length;mj++) if (map2[mj]>mm2) mm2=map2[mj];
+    if (map2){ for (var r3=0;r3<8;r3++) for (var c3=0;c3<8;c3++){ var vv2=map2[r3*8+c3]/mm2, gg2=Math.round(vv2*255); ctx.fillStyle='rgb('+gg2+','+gg2+','+gg2+')'; ctx.fillRect(x1+c3*mc2, y1+r3*mc2, mc2+0.6, mc2+0.6); } }
+    else { ctx.fillStyle='#141230'; ctx.fillRect(x1,y1,m2,m2); }
+    var g2h=(step5_hover&&step5_hover.type==='conv2'&&step5_hover.k===k4)||ft===1;
+    ctx.lineWidth=g2h?2:0.5; ctx.strokeStyle=g2h?'#fbbf24':'#4a4490'; ctx.strokeRect(x1,y1,m2,m2);
+  }
+  ctx.lineWidth=1; cnn_label(ctx, c2x+m2/2, t2+NK*(m2+g2)+8, 'CONV 2');
+  // ---- hidden ----
+  var hmax=0.0001; if (fwd) for (var jm=0;jm<hn;jm++) if (fwd.h[jm]>hmax) hmax=fwd.h[jm];
+  for (var j5=0;j5<hn;j5++){ var actv= fwd? fwd.h[j5]/hmax:0, b=Math.round(30+actv*225); ctx.beginPath(); ctx.arc(hx, hy(j5), hr, 0, Math.PI*2); ctx.fillStyle='rgb('+b+','+b+','+b+')'; ctx.fill(); ctx.strokeStyle=(ft===2||ft===3)?'#fbbf24':'#8a85bd'; ctx.lineWidth=(ft===2||ft===3)?1.3:0.8; ctx.stroke(); }
+  cnn_label(ctx, hx, H-8, 'HIDDEN 20');
+  // ---- output ----
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for (var o2=0;o2<10;o2++){ var p= fwd?fwd.p[o2]:0, winO=(o2===win), rad=10+(fwd?p*10:0); ctx.beginPath(); ctx.arc(ox, oy(o2), rad, 0, Math.PI*2); ctx.fillStyle= winO?'rgba(251,191,36,0.22)':'#353072'; ctx.fill(); ctx.strokeStyle= (winO||ft===3)?'#fbbf24':'#8a85bd'; ctx.lineWidth= winO?2.5:1; ctx.stroke(); ctx.fillStyle= winO?'#fbbf24':'#f0eefc'; ctx.font='600 13px "Poppins",sans-serif'; ctx.fillText(String(o2), ox, oy(o2)+0.5); if (fwd){ ctx.fillStyle='#8a85bd'; ctx.font='9px "DM Sans",sans-serif'; ctx.textAlign='left'; ctx.fillText(Math.round(p*100)+'%', ox+rad+6, oy(o2)+0.5); ctx.textAlign='center'; } }
+  cnn_label(ctx, ox, H-8, 'OUTPUT');
+  // ---- answer ----
+  if (fwd && win>=0){ ctx.beginPath(); ctx.arc(aX, H/2, 27, 0, Math.PI*2); ctx.fillStyle='#2e2a63'; ctx.fill(); ctx.strokeStyle= CNN_TRAINED?'#fbbf24':'#8a85bd'; ctx.lineWidth=2.5; ctx.stroke(); ctx.fillStyle= CNN_TRAINED?'#fbbf24':'#8a85bd'; ctx.font='600 29px "Poppins",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(win), aX, H/2+1); ctx.fillStyle='#b8b3e0'; ctx.font='9px "DM Sans",sans-serif'; ctx.fillText(CNN_TRAINED?(Math.round(fwd.p[win]*100)+'% sure'):'untrained', aX, H/2+41); }
+  // ---- hover inset ----
+  if (step5_hover && act) cnn_hoverInset(ctx, proc, act, step5_hover);
+}
+// Pop-over that shows, for the hovered filter, its 3x3 kernel, where it fired on
+// the digit, and its feature map, so students see how a convolution finds a pattern.
+function cnn_hoverInset(ctx, proc, act, hover) {
+  var isC1 = hover.type==='conv1', k = hover.k;
+  var map = isC1 ? act.conv1[k] : act.conv2[k];
+  var dim = isC1 ? 16 : 8;
+  var ker = isC1 ? CNN_K[k] : CNN_K2[k % CNN_K2.length];
+  var name = isC1 ? CNN_K_NAMES[k] : CNN_K2_NAMES[k % CNN_K2_NAMES.length];
+  var pX=328, pY=6, pW=362, pH=150;
+  ctx.fillStyle='rgba(18,15,42,0.97)'; ctx.fillRect(pX,pY,pW,pH);
+  ctx.strokeStyle='#6b66a8'; ctx.lineWidth=1; ctx.strokeRect(pX,pY,pW,pH);
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillStyle='#fcd34d'; ctx.font='600 12px "DM Sans",sans-serif';
+  ctx.fillText((isC1?'CONV 1':'CONV 2')+' filter '+(k+1)+': '+name, pX+12, pY+20);
+  // kernel
+  var kx=pX+16, ky=pY+36, kc=17;
+  for (var r=0;r<3;r++) for (var c=0;c<3;c++){ var w=ker[r*3+c]; ctx.fillStyle= w>0?'rgba(52,211,153,'+Math.min(1,0.22+Math.abs(w)/8)+')':(w<0?'rgba(248,113,113,'+Math.min(1,0.22+Math.abs(w)/8)+')':'#353072'); ctx.fillRect(kx+c*kc, ky+r*kc, kc-1.5, kc-1.5); ctx.fillStyle='#f0eefc'; ctx.font='8px "Poppins",sans-serif'; ctx.textAlign='center'; ctx.fillText(String(w), kx+c*kc+kc/2, ky+r*kc+kc/2+3); ctx.textAlign='left'; }
+  ctx.fillStyle='#8a85bd'; ctx.font='8px "DM Sans",sans-serif'; ctx.textAlign='center'; ctx.fillText('the filter', kx+1.5*kc, ky+3*kc+11); ctx.textAlign='left';
+  // input digit with response overlay
+  var tx=pX+92, ty=pY+36, tsz=84, tcc=tsz/16, mmax=0.0001;
+  for (var mi=0;mi<map.length;mi++) if (map[mi]>mmax) mmax=map[mi];
+  for (var ar=0;ar<16;ar++) for (var ac=0;ac<16;ac++){ var v=proc?proc[ar*16+ac]:0, g=Math.round(v*225); ctx.fillStyle='rgb('+g+','+g+','+g+')'; ctx.fillRect(tx+ac*tcc, ty+ar*tcc, tcc+0.5, tcc+0.5); }
+  var scale=16/dim;
+  for (var mr=0;mr<dim;mr++) for (var mc=0;mc<dim;mc++){ var rv=map[mr*dim+mc]/mmax; if (rv>0.35){ ctx.fillStyle='rgba(251,191,36,'+(rv*0.6)+')'; ctx.fillRect(tx+mc*scale*tcc, ty+mr*scale*tcc, scale*tcc, scale*tcc); } }
+  ctx.strokeStyle='#4a4490'; ctx.lineWidth=1; ctx.strokeRect(tx,ty,tsz,tsz);
+  ctx.fillStyle='#8a85bd'; ctx.font='8px "DM Sans",sans-serif'; ctx.textAlign='center'; ctx.fillText('found on your digit', tx+tsz/2, ty+tsz+11); ctx.textAlign='left';
+  // feature map
+  var fx=pX+210, fy=pY+36, fsz=84, fc=fsz/dim;
+  for (var fr=0;fr<dim;fr++) for (var fk=0;fk<dim;fk++){ var fv=map[fr*dim+fk]/mmax, fg=Math.round(fv*255); ctx.fillStyle='rgb('+fg+','+fg+','+fg+')'; ctx.fillRect(fx+fk*fc, fy+fr*fc, fc+0.5, fc+0.5); }
+  ctx.strokeStyle='#4a4490'; ctx.strokeRect(fx,fy,fsz,fsz);
+  ctx.fillStyle='#8a85bd'; ctx.font='8px "DM Sans",sans-serif'; ctx.textAlign='center'; ctx.fillText('feature map', fx+fsz/2, fy+fsz+11); ctx.textAlign='left';
+  // caption
+  ctx.fillStyle='#b8b3e0'; ctx.font='9px "DM Sans",sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Gold = where this filter matched your digit.', pX+12, pY+pH-8);
+  ctx.textAlign='center';
+}
+// hit-test the feature maps (constants must match cnn_draw)
+function step5_hitMap(x, y) {
+  var c1x=112, m1=36, g1=6, t1=14, c2x=232, m2=32, g2=6, t2=28, NK=CNN_NK;
+  for (var k=0;k<NK;k++){ var y0=t1+k*(m1+g1); if (x>=c1x && x<=c1x+m1 && y>=y0 && y<=y0+m1) return {type:'conv1', k:k}; }
+  for (var k2=0;k2<NK;k2++){ var y1=t2+k2*(m2+g2); if (x>=c2x && x<=c2x+m2 && y>=y1 && y<=y1+m2) return {type:'conv2', k:k2}; }
+  return null;
+}
+function step5_hoverMove(e) {
+  var canvas = document.getElementById('step5Canvas');
+  if (!canvas) return;
+  var rect = canvas.getBoundingClientRect();
+  var x = (e.clientX-rect.left) * (canvas.width/rect.width);
+  var y = (e.clientY-rect.top) * (canvas.height/rect.height);
+  var hov = step5_hitMap(x, y);
+  var changed = (!!hov !== !!step5_hover) || (hov && step5_hover && (hov.type!==step5_hover.type || hov.k!==step5_hover.k));
+  step5_hover = hov;
+  canvas.style.cursor = hov ? 'pointer' : 'default';
+  if (changed) step5_predict();
+}
+// one gradient step on a SINGLE example (the student's digit), for the walkthrough
+function cnn_trainOne(x, label) {
+  var nin=CNN_NK*16, lr=0.35, j, o, k;
+  var hpre=new Array(CNN_HID), h=new Array(CNN_HID);
+  for (j=0;j<CNN_HID;j++){ var sm=CNN.b1[j], w=CNN.W1[j]; for (k=0;k<nin;k++) sm+=w[k]*x[k]; hpre[j]=sm; h[j]= sm>0?sm:0; }
+  var z=new Array(10);
+  for (o=0;o<10;o++){ var s2=CNN.b2[o], w2=CNN.W2[o]; for (j=0;j<CNN_HID;j++) s2+=w2[j]*h[j]; z[o]=s2; }
+  var mx=-1e9; for (var m=0;m<10;m++) if (z[m]>mx) mx=z[m];
+  var p=new Array(10), sum=0; for (var e=0;e<10;e++){ p[e]=Math.exp(z[e]-mx); sum+=p[e]; } for (var q=0;q<10;q++) p[q]/=sum;
+  var dz2=new Array(10); for (o=0;o<10;o++) dz2[o]=p[o]-(o===label?1:0);
+  var dh=new Array(CNN_HID);
+  for (j=0;j<CNN_HID;j++){ var gg=0; for (o=0;o<10;o++) gg+=CNN.W2[o][j]*dz2[o]; dh[j]= hpre[j]>0?gg:0; }
+  for (o=0;o<10;o++){ var w2u=CNN.W2[o], d2=dz2[o]; for (j=0;j<CNN_HID;j++) w2u[j]-=lr*d2*h[j]; CNN.b2[o]-=lr*d2; }
+  for (j=0;j<CNN_HID;j++){ var dhj=dh[j]; if (dhj!==0){ var w1u=CNN.W1[j]; for (k=0;k<nin;k++) w1u[k]-=lr*dhj*x[k]; CNN.b1[j]-=lr*dhj; } }
+}
+function cnn_batchAcc(set){ var c=0; for (var i=0;i<set.length;i++){ var p=cnn_forwardX(set[i].x).p, w=0; for (var d=1;d<10;d++) if (p[d]>p[w]) w=d; if (w===set[i].y) c++; } return c/set.length; }
+// the student's current digit as a normalized feature vector, or null
+function step5_curX(){
+  var flat=[]; for (var r=0;r<G;r++) for (var c=0;c<G;c++) flat.push(pixelGrid[r][c]);
+  var total=0; for (var t=0;t<flat.length;t++) total+=flat[t];
+  if (total<0.5) return null;
+  return cnn_norm(cnn_extract(preprocessDigit(flat)).x);
+}
+var STEP5_BEATS = ['Forward pass','Guess','Measure error','Nudge weights','A bit better'];
+function step5_renderBeatBar(){
+  var bar=document.getElementById('step5BeatBar'); if(!bar) return;
+  var html='';
+  for (var i=0;i<STEP5_BEATS.length;i++){
+    var done=step5_beat>=i+1, active=step5_beat===i+1;
+    html += '<div style="flex:1;text-align:center">'
+      + '<div style="height:4px;border-radius:99px;background:'+(done?'#fbbf24':'var(--border)')+';opacity:'+(done?1:0.4)+';transition:all 0.3s"></div>'
+      + '<div style="font-size:8.5px;margin-top:3px;color:'+(active?'#fbbf24':'var(--text3)')+';font-weight:'+(active?600:400)+'">'+STEP5_BEATS[i]+'</div></div>';
+  }
+  bar.innerHTML=html;
+}
+function step5_setCap(html){ var c=document.getElementById('step5Caption'); if(c) c.innerHTML='<span>'+html+'</span>'; }
+function step5_disableBtns(d){ var a=document.getElementById('step5WalkBtn'), b=document.getElementById('step5TrainBtn'); if(a)a.disabled=d; if(b)b.disabled=d; }
+// sweep the glow along a sequence of connection groups, then continue
+function step5_sweep(seq, i, onDone){
+  if (i>=seq.length){ step5_flowT=-1; step5_predict(); if(onDone) onDone(); return; }
+  step5_flowT=seq[i]; step5_predict();
+  setTimeout(function(){ step5_sweep(seq, i+1, onDone); }, 210);
+}
+function step5_walk(){
+  if (step5_anim) return;
+  var x=step5_curX();
+  if (!x){ step5_setCap('<strong style="color:var(--gold)">Draw a digit first</strong>, then walk it through one learning step.'); return; }
+  if (step5_walkLabel<0){ step5_showLabelPicker(); return; }
+  step5_runWalk(x);
+}
+function step5_showLabelPicker(){
+  var btns='';
+  for (var d=0;d<10;d++) btns += '<button onclick="step5_pickLabel('+d+')" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-family:Poppins,sans-serif;font-size:15px;font-weight:600;cursor:pointer">'+d+'</button>';
+  step5_setCap('<div style="margin-bottom:8px;color:var(--text2)">Which digit did you draw? Tell the network the right answer, the label it learns from.</div><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap">'+btns+'</div>');
+}
+function step5_pickLabel(d){ if (step5_anim) return; step5_walkLabel=d; var x=step5_curX(); if (!x){ step5_walk(); return; } step5_runWalk(x); }
+function step5_runWalk(x){
+  step5_anim=true; step5_disableBtns(true);
+  var label=step5_walkLabel;
+  var p0=cnn_forwardX(x).p, guess=0; for (var d=1;d<10;d++) if (p0[d]>p0[guess]) guess=d;
+  // beat 1: forward pass, glow sweeps left -> right
+  step5_beat=1; step5_renderBeatBar();
+  step5_setCap('<strong style="color:var(--gold)">Forward pass.</strong> Your digit flows left to right through the layers to a guess.');
+  step5_sweep([0,1,2,3], 0, function(){
+    // beat 2: the guess vs your label
+    step5_beat=2; step5_renderBeatBar();
+    if (guess===label) step5_setCap('<strong style="color:var(--green)">Right answer.</strong> The loudest output is <strong style="color:var(--text)">'+guess+'</strong>, and you said <strong style="color:var(--text)">'+label+'</strong>. It can still be more sure.');
+    else step5_setCap('<strong style="color:var(--red)">Wrong answer.</strong> The loudest output is <strong style="color:var(--text)">'+guess+'</strong>, but you said <strong style="color:var(--text)">'+label+'</strong>.');
+    setTimeout(function(){
+      // beat 3: measure the error
+      step5_beat=3; step5_renderBeatBar();
+      var got=Math.round(cnn_forwardX(x).p[label]*100);
+      step5_setCap('<strong style="color:var(--red)">Measure the error.</strong> Output <strong style="color:var(--text)">'+label+'</strong> should fire near 100%, but it is at <strong style="color:var(--text)">'+got+'%</strong>. That gap is the error.');
+      setTimeout(function(){
+        // beat 4: nudge weights, glow sweeps right -> left along the trainable wiring
+        step5_beat=4; step5_renderBeatBar();
+        step5_setCap('<strong style="color:var(--gold)">Nudge the weights.</strong> The error flows backward and adjusts the wiring after the conv layers.');
+        step5_walkBefore=cnn_forwardX(x).p[label];
+        step5_sweep([3,2], 0, function(){
+          cnn_trainOne(x, label);
+          // beat 5: a bit better
+          step5_beat=5; step5_renderBeatBar();
+          var after=cnn_forwardX(x).p[label];
+          step5_setCap('<strong style="color:var(--green)">A bit better.</strong> Output '+label+' went from <strong style="color:var(--text)">'+Math.round(step5_walkBefore*100)+'%</strong> to <strong style="color:var(--green)">'+Math.round(after*100)+'%</strong> on your digit. Real training repeats this across many examples, <strong style="color:var(--text)">Train it fully</strong> does exactly that.');
+          step5_anim=false; step5_flowT=-1; step5_disableBtns(false);
+          var wb=document.getElementById('step5WalkBtn'); if (wb) wb.textContent='Walk another step';
+          step5_predict();
+        });
+      }, 780);
+    }, 780);
+  });
+}
+function step5_trainFully(){
+  if (step5_anim) return;
+  step5_anim=true; step5_disableBtns(true); step5_beat=0; step5_renderBeatBar();
+  step5_setCap('<strong style="color:var(--gold)">Training.</strong> Running the loop across many example digits, every weight after the conv layers adjusting at once.');
+  if (!CNN) cnn_init();
+  var set=cnn_buildTrain(), total=70, done=0;
+  function chunk(){
+    for (var e=0;e<5 && done<total;e++){ cnn_trainEpoch(set, 0.8); done++; }
+    step5_flowT = (Math.floor(done/5)%2===0)?3:2;   // shimmer the trainable wiring
+    step5_predict();
+    if (done<total) setTimeout(chunk, 30);
+    else {
+      CNN_TRAINED=true; step5_flowT=-1; step5_anim=false; step5_disableBtns(false);
+      var acc=cnn_batchAcc(set);
+      step5_setCap('<strong style="color:var(--green)">Trained.</strong> The network now reads <strong style="color:var(--green)">'+Math.round(acc*100)+'%</strong> of its practice digits right. Draw digits above and watch the whole model classify.');
+      var wb=document.getElementById('step5WalkBtn'); if (wb) wb.disabled=true;
+      step5_predict();
+    }
+  }
+  setTimeout(chunk, 30);
+}
+
+function step5_predict() {
+  var canvas = document.getElementById('step5Canvas');
+  if (!canvas) return;
+  var flat = [];
+  for (var r=0;r<G;r++) for (var c=0;c<G;c++) flat.push(pixelGrid[r][c]);
+  var total = 0; for (var t=0;t<flat.length;t++) total += flat[t];
+  var empty = total < 0.5;
+  var proc = empty ? null : preprocessDigit(flat);
+  var act = empty ? null : cnn_extract(proc);
+  var fwd = (act && CNN) ? cnn_forwardX(cnn_norm(act.x)) : null;
+  var win = -1;
+  if (fwd){ var mv=-1; for (var i=0;i<10;i++) if (fwd.p[i]>mv){ mv=fwd.p[i]; win=i; } }
+  if (!empty && !step5_hasDrawn){ step5_hasDrawn = true; updateNav(); }
+  cnn_draw(canvas, proc, act, fwd, win, empty);
+  step5_readout(fwd, win, empty);
+}
+function step5_readout(fwd, win, empty) {
+  var el = document.getElementById('step5Readout');
+  if (!el) return;
+  if (empty || !fwd){ el.innerHTML = '<div style="padding:10px 12px;background:var(--bg-card2);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text3);text-align:center">Draw a digit to run it through the network.</div>'; return; }
+  if (!CNN_TRAINED){ el.innerHTML = '<div style="padding:11px 13px;background:var(--bg-card2);border:1px dashed var(--text3);border-radius:10px;font-size:12px;color:var(--text3);line-height:1.55"><strong style="color:var(--text2)">Untrained network.</strong> The wires are random, so this guess is meaningless. Train it below to make it real.</div>'; return; }
+  var conf = Math.round(fwd.p[win]*100);
+  el.innerHTML = '<div style="padding:11px 13px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.4);border-radius:10px;font-size:12px;color:var(--text2);line-height:1.55">Image &rarr; <strong>conv 1</strong> &rarr; <strong>conv 2</strong> &rarr; <strong>20 hidden</strong> &rarr; 10 outputs. It reads <strong style="color:var(--gold)">' + win + '</strong> at <strong>' + conf + '%</strong>.</div>';
+}
+var step5_predictQueued = false;
+function step5_predictThrottled() {
+  if (step5_predictQueued) return;
+  step5_predictQueued = true;
+  requestAnimationFrame(function(){ step5_predictQueued = false; step5_predict(); });
+}
+function step5_canAdvance() { return step5_hasDrawn; }
+function step5_post() {
+  var canvas = document.getElementById('step5Canvas');
+  step5_hover = null;
+  if (canvas){
+    canvas.width = 1000; canvas.height = 440;
+    canvas.onmousemove = step5_hoverMove;
+    canvas.onmouseleave = function(){ if (step5_hover){ step5_hover = null; step5_predict(); } };
+  }
+  initDrawCanvas('drawCanvas', step5_predictThrottled);
+  var total = 0; for (var r=0;r<G;r++) for (var c=0;c<G;c++) total += pixelGrid[r][c];
+  if (total > 3) step5_hasDrawn = true;
+  if (!CNN) cnn_init();       // starts untrained; the student trains it below
+  step5_flowT = -1;
+  if (!CNN_TRAINED){ step5_walkLabel = -1; step5_beat = 0; }
+  step5_renderBeatBar();
+  if (CNN_TRAINED){ var wb=document.getElementById('step5WalkBtn'); if (wb) wb.disabled = true; }
+  step5_predict();
+  updateNav();
+}
 // ============================================================
 var STEPS = [
-  { label: 'Pixels',   render: renderStep1, post: step1_post, canAdvance: step1_canAdvance },
-  { label: 'Features', render: renderStep2, post: step2_post, canAdvance: step2_canAdvance },
-  { label: 'Network',  render: renderStep3, post: step3_post, canAdvance: step3_canAdvance },
-  { label: 'Quiz',     render: renderStep4, post: step4_post, canAdvance: step4_canAdvance }
+  { label: 'Pixels',     render: renderStep1, post: step1_post, canAdvance: step1_canAdvance },
+  { label: 'Features',   render: renderStep2, post: step2_post, canAdvance: step2_canAdvance },
+  { label: 'Network',    render: renderStep3, post: step3_post, canAdvance: step3_canAdvance },
+  { label: 'Full model', render: renderStep5, post: step5_post, canAdvance: step5_canAdvance },
+  { label: 'Quiz',       render: renderStep4, post: step4_post, canAdvance: step4_canAdvance }
 ];
 var stepIdx = 0;
 var maxReached = 0;
@@ -1967,7 +2617,8 @@ function resetStepState(i) {
   if (i === 0) { pixelGrid = makeGrid(); step1_hasDrawn = false; }
   else if (i === 1) { step2_seen = false; }
   else if (i === 2) { step3_hasDrawn = false; }
-  else if (i === 3) { if (!step4_quizDone) step4_quizIdx = 0; }
+  else if (i === 3) { step5_hasDrawn = false; }   // full-model overview keeps the drawing
+  else if (i === 4) { if (!step4_quizDone) step4_quizIdx = 0; }
 }
 function nextStep() {
   if (stepIdx < STEPS.length-1) {
@@ -2000,12 +2651,20 @@ window.step3_setInspect = step3_setInspect;
 window.step3_walk = step3_walk;
 window.step3_pickLabel = step3_pickLabel;
 window.step3_trainFully = step3_trainFully;
-window.step2_toggleConv = step2_toggleConv;
-window.step2_convStep = step2_convStep;
-window.step2_convAuto = step2_convAuto;
 window.step2_highlight = step2_highlight;
 window.step2_clearHighlight = step2_clearHighlight;
 window.step2_toggleHighlight = step2_toggleHighlight;
+window.step2_pickFeat = step2_pickFeat;
+window.step2_trainKer = step2_trainKer;
+window.step2_scanDigit = step2_scanDigit;
+window.step5_walk = step5_walk;
+window.step5_pickLabel = step5_pickLabel;
+window.step5_trainFully = step5_trainFully;
+window.step2_cvToggle = step2_cvToggle;
+window.step2_cvSlide = step2_cvSlide;
+window.step2_cvDiscover = step2_cvDiscover;
+window.step2_cvMoveLine = step2_cvMoveLine;
+window.step2_cvReset = step2_cvReset;
 
 render();
 </script>
