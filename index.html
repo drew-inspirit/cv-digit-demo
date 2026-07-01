@@ -118,7 +118,8 @@
   .btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .btn-primary { background: var(--gold); color: var(--bg-deep); border-color: var(--gold-bright); box-shadow: 0 4px 16px var(--gold-glow); }
   .btn-primary:hover:not(:disabled) { background: var(--gold-bright); }
-  .btn-ghost { background: transparent; }
+  .btn-ghost { background: var(--bg-panel); border-color: var(--border); color: var(--text); }
+  .btn-ghost:hover:not(:disabled) { background: var(--bg-card2); border-color: var(--gold); color: var(--gold-bright); }
 
   .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
   .nav-meta { font-size: 12px; color: var(--text3); font-weight: 500; }
@@ -1132,7 +1133,7 @@ function step2_slide(){
   function tick(){
     step2_drawMap(); step2_drawSlideWin();
     step2_scanPos+=3;
-    if (step2_scanPos < G*G) setTimeout(tick,45);
+    if (step2_scanPos < G*G) setTimeout(tick,54);
     else {
       step2_scanPos=-1; step2_anim=false; step2_stage=step2_kerTrained?2:1;
       step2_drawMap(); step2_drawSlideWin(); step2_cvControls();
