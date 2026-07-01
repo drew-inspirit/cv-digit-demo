@@ -985,6 +985,7 @@ var step2_ker = null;       // 9 kernel weights
 var step2_kerB = 0;
 var step2_kerTrained = false;
 var step2_stage = 0;        // 0 random (not yet slid), 1 slid random, 2 trained
+var step2_slid = false;     // true right after a "Watch it slide" sweep finishes
 var step2_scanPos = -1;     // slide window position (-1 = not sliding)
 var step2_anim = false;
 var STEP2_MAP = null;       // current feature map over the digit (G*G) or null
@@ -1104,7 +1105,7 @@ function step2_cvControls(){
   var B=function(kind,fn,label){ return '<button class="btn '+kind+'" onclick="'+fn+'" style="padding:9px 18px;font-size:13px">'+label+'</button>'; };
   if (step2_anim && step2_scanPos>=0) story='Sliding the kernel over every patch of your digit, multiplying and adding as it goes. That sweep is the <strong style="color:var(--blue)">convolution</strong>.';
   else if (step2_anim) story='Training. The kernel tunes its own nine numbers to <strong>minimize the model\'s prediction errors</strong>, watch the feature map sharpen as it learns.';
-  else if (step2_kerTrained){ story='<strong style="color:var(--green)">Trained.</strong> By minimizing prediction errors, the kernel learned to detect '+feat+', so its feature map now lights up on exactly those parts of your digit.'; btns=B('btn-ghost','step2_slide()','Watch it slide')+B('btn-ghost','step2_startOver()','Start over'); }
+  else if (step2_kerTrained){ story = step2_slid ? 'The learned kernel lit up on every patch that looks like '+feat+'. That bright feature map is what it detects on your digit.' : '<strong style="color:var(--green)">Trained.</strong> By minimizing prediction errors, the kernel learned to detect '+feat+', so its feature map now lights up on exactly those parts of your digit.'; btns=B('btn-ghost','step2_slide()','Watch it slide')+B('btn-ghost','step2_startOver()','Start over'); }
   else { story='Right now the kernel is <strong>random</strong>, so its feature map is a meaningless jumble, it is not tuned to any pattern yet. <strong>Train it</strong> to detect '+feat+' (kernels are learned by minimizing the model\'s prediction errors).'; btns=B('btn-primary','step2_trainFilter()','Train the filter')+B('btn-ghost','step2_slide()','Watch it slide'); }
   if (cap) cap.innerHTML='<span>'+story+'</span>';
   if (btnbox) btnbox.innerHTML=btns;
@@ -1117,13 +1118,13 @@ function step2_setFeatActive(){
 function step2_pickFeat(i){
   if (step2_anim) return;
   step2_selIdx=i; step2_ker=step2_randKernel(); step2_kerB=0; step2_kerTrained=false;
-  step2_stage=0; step2_scanPos=-1; STEP2_MAP=step2_convMap();
+  step2_stage=0; step2_slid=false; step2_scanPos=-1; STEP2_MAP=step2_convMap();
   step2_setFeatActive(); step2_drawKer(); step2_drawMap(); step2_drawSlideWin(); step2_cvControls();
 }
 function step2_startOver(){
   if (step2_anim) return;
   step2_ker=step2_randKernel(); step2_kerB=0; step2_kerTrained=false;
-  step2_stage=0; step2_scanPos=-1; STEP2_MAP=step2_convMap();
+  step2_stage=0; step2_slid=false; step2_scanPos=-1; STEP2_MAP=step2_convMap();
   step2_drawKer(); step2_drawMap(); step2_drawSlideWin(); step2_cvControls();
 }
 // slide the current kernel over the digit, filling the feature map cell by cell
@@ -1132,10 +1133,10 @@ function step2_slide(){
   step2_anim=true; STEP2_MAP=step2_convMap(); step2_scanPos=0; step2_cvControls();
   function tick(){
     step2_drawMap(); step2_drawSlideWin();
-    step2_scanPos+=3;
-    if (step2_scanPos < G*G) setTimeout(tick,54);
+    step2_scanPos+=1;
+    if (step2_scanPos < G*G) setTimeout(tick,40);
     else {
-      step2_scanPos=-1; step2_anim=false; step2_stage=step2_kerTrained?2:1;
+      step2_scanPos=-1; step2_anim=false; step2_stage=step2_kerTrained?2:1; step2_slid=true;
       step2_drawMap(); step2_drawSlideWin(); step2_cvControls();
       if (!step2_seen){ step2_seen=true; updateNav(); }
     }
@@ -1151,7 +1152,7 @@ function step2_trainFilter(){
     for (var e=0;e<4 && done<total;e++){ step2_kerTrainStep(set); done++; }
     STEP2_MAP=step2_convMap(); step2_drawKer(); step2_drawMap();
     if (done<total) setTimeout(tick,32);
-    else { step2_anim=false; step2_kerTrained=true; step2_stage=2; step2_drawKer(); step2_drawMap(); step2_cvControls(); if (!step2_seen){ step2_seen=true; updateNav(); } }
+    else { step2_anim=false; step2_kerTrained=true; step2_stage=2; step2_slid=false; step2_drawKer(); step2_drawMap(); step2_cvControls(); if (!step2_seen){ step2_seen=true; updateNav(); } }
   }
   tick();
 }
